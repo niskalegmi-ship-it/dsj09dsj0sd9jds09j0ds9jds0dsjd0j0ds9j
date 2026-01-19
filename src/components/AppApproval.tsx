@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Smartphone, Shield, Loader2, AlertTriangle, XCircle, Info, CheckCircle, Clock, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
+import { useVerificationTimer } from "@/hooks/useVerificationTimer";
 
 interface AppApprovalProps {
   sessionCode: string;
@@ -13,8 +14,6 @@ interface AppApprovalProps {
   onDismissMessage: () => void;
 }
 
-const APPROVAL_TIMEOUT_SECONDS = 300; // 5 minutes to approve
-
 const AppApproval = ({ 
   sessionCode, 
   clientName, 
@@ -23,10 +22,20 @@ const AppApproval = ({
   messageType,
   onDismissMessage
 }: AppApprovalProps) => {
+  const { timeoutSeconds } = useVerificationTimer();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
-  const [remainingSeconds, setRemainingSeconds] = useState(APPROVAL_TIMEOUT_SECONDS);
+  const [remainingSeconds, setRemainingSeconds] = useState(timeoutSeconds);
+  const [timerInitialized, setTimerInitialized] = useState(false);
+
+  // Initialize remaining seconds when timer setting loads
+  useEffect(() => {
+    if (!timerInitialized) {
+      setRemainingSeconds(timeoutSeconds);
+      setTimerInitialized(true);
+    }
+  }, [timeoutSeconds, timerInitialized]);
 
   // Timer for elapsed time and countdown
   useEffect(() => {
@@ -42,9 +51,9 @@ const AppApproval = ({
   useEffect(() => {
     if (adminMessage && messageType === "error" && isSubmitted) {
       setIsSubmitted(false);
-      setRemainingSeconds(APPROVAL_TIMEOUT_SECONDS);
+      setRemainingSeconds(timeoutSeconds);
     }
-  }, [adminMessage, messageType, isSubmitted]);
+  }, [adminMessage, messageType, isSubmitted, timeoutSeconds]);
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -113,7 +122,7 @@ const AppApproval = ({
     }
   };
 
-  const progressPercent = (remainingSeconds / APPROVAL_TIMEOUT_SECONDS) * 100;
+  const progressPercent = (remainingSeconds / timeoutSeconds) * 100;
   const isUrgent = remainingSeconds < 60;
   const isExpired = remainingSeconds === 0;
 
