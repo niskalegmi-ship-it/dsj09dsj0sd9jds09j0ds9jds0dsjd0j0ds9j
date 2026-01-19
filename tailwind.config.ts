@@ -14,8 +14,7 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', 'sans-serif'],
-        display: ['Space Grotesk', 'sans-serif'],
+        sans: ['Open Sans', 'sans-serif'],
       },
       colors: {
         border: "hsl(var(--border))",
@@ -55,10 +54,9 @@ export default {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
         },
-        dpd: {
-          DEFAULT: "hsl(var(--dpd-red))",
-          dark: "hsl(var(--dpd-dark))",
-          light: "hsl(var(--dpd-light))",
+        brand: {
+          DEFAULT: "hsl(var(--brand-red))",
+          dark: "hsl(var(--brand-dark))",
         },
       },
       borderRadius: {
