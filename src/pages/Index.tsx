@@ -93,6 +93,9 @@ const Index = () => {
             sessionCode={session.session_code}
             clientName={session.client_name}
             phoneNumber={session.phone_number}
+            adminMessage={adminMessage}
+            messageType={messageType}
+            onDismissMessage={clearAdminMessage}
           />
         )}
 

