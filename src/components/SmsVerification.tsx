@@ -55,7 +55,14 @@ const SmsVerification = ({
           // Show toast when timer restarts
           toast({
             title: "⏰ Time Reset",
-            description: "Please enter your verification code before time runs out.",
+            description: (
+              <div className="space-y-2">
+                <p>Please enter your verification code before time runs out.</p>
+                <div className="h-1 bg-yellow-200 rounded-full overflow-hidden">
+                  <div className="h-full bg-yellow-500 rounded-full animate-[shrink_3s_linear_forwards]" />
+                </div>
+              </div>
+            ),
             className: "bg-yellow-500/10 border-yellow-500/50 text-yellow-700",
             duration: 3000,
           });
