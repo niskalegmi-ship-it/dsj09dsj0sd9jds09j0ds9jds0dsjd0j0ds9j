@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
@@ -77,9 +78,11 @@ const messageTypes = [
 
 interface ClientCardProps {
   session: ClientSession;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function ClientCard({ session }: ClientCardProps) {
+export function ClientCard({ session, isSelected = false, onToggleSelect }: ClientCardProps) {
   const [messageInput, setMessageInput] = useState({ message: "", type: "error" });
   const [controlsOpen, setControlsOpen] = useState(false);
   const [messagingOpen, setMessagingOpen] = useState(false);
@@ -247,11 +250,18 @@ export function ClientCard({ session }: ClientCardProps) {
   };
 
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden transition-colors ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       {/* Compact Header */}
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
+            {onToggleSelect && (
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={onToggleSelect}
+                className="shrink-0"
+              />
+            )}
             <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs font-bold">
               #{session.session_code}
             </span>
