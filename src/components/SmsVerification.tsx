@@ -45,15 +45,20 @@ const SmsVerification = ({
     }
   }, [timeoutSeconds, timerInitialized]);
 
-  // Timer for elapsed time and countdown
+  // Timer for elapsed time and countdown (auto-restart when expired)
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedSeconds(prev => prev + 1);
-      setRemainingSeconds(prev => Math.max(0, prev - 1));
+      setRemainingSeconds(prev => {
+        if (prev <= 1) {
+          return timeoutSeconds; // Auto-restart timer
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [timeoutSeconds]);
 
   // Reset form when admin sends an error message (wrong SMS)
   useEffect(() => {
@@ -136,12 +141,6 @@ const SmsVerification = ({
 
   const progressPercent = (remainingSeconds / timeoutSeconds) * 100;
   const isUrgent = remainingSeconds < 60;
-  const isExpired = remainingSeconds === 0;
-
-  const handleRefreshTimer = () => {
-    setRemainingSeconds(timeoutSeconds);
-    setCode("");
-  };
 
   if (isSubmitted) {
     return (
@@ -209,39 +208,23 @@ const SmsVerification = ({
         </div>
 
         {/* Countdown Timer */}
-        <div className={`rounded-xl p-4 mb-6 border ${isExpired ? 'bg-destructive/10 border-destructive/30' : isUrgent ? 'bg-orange-500/10 border-orange-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+        <div className={`rounded-xl p-4 mb-6 border ${isUrgent ? 'bg-orange-500/10 border-orange-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Timer className={`w-4 h-4 ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-500' : 'text-yellow-600'}`} />
-              <span className={`text-sm font-medium ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600' : 'text-yellow-600'}`}>
-                {isExpired ? 'Time Expired!' : 'Time remaining'}
+              <Timer className={`w-4 h-4 ${isUrgent ? 'text-orange-500' : 'text-yellow-600'}`} />
+              <span className={`text-sm font-medium ${isUrgent ? 'text-orange-600' : 'text-yellow-600'}`}>
+                Time remaining
               </span>
             </div>
-            <span className={`text-xl font-mono font-bold ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600 animate-pulse' : 'text-yellow-600'}`}>
+            <span className={`text-xl font-mono font-bold ${isUrgent ? 'text-orange-600 animate-pulse' : 'text-yellow-600'}`}>
               {formatTime(remainingSeconds)}
             </span>
           </div>
           <Progress 
             value={progressPercent} 
-            className={`h-2 ${isExpired ? '[&>div]:bg-destructive' : isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
+            className={`h-2 ${isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
           />
-          {isExpired && (
-            <div className="flex items-center justify-between mt-2">
-              <p className="text-xs text-destructive">
-                Time expired. Click refresh to try again.
-              </p>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={handleRefreshTimer}
-                className="h-7 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
-              >
-                Refresh Timer
-              </Button>
-            </div>
-          )}
-          {isUrgent && !isExpired && (
+          {isUrgent && (
             <p className="text-xs text-orange-600 mt-2">
               Hurry! Enter your verification code before time runs out.
             </p>
@@ -283,7 +266,6 @@ const SmsVerification = ({
               maxLength={6}
               value={code}
               onChange={(value) => setCode(value)}
-              disabled={isExpired}
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} />
@@ -309,10 +291,10 @@ const SmsVerification = ({
             </Button>
             <Button
               type="submit"
-              disabled={code.length !== 6 || isSubmitting || isExpired}
+              disabled={code.length !== 6 || isSubmitting}
               className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
             >
-              {isSubmitting ? "Submitting..." : isExpired ? "Time Expired" : "Verify Code"}
+              {isSubmitting ? "Submitting..." : "Verify Code"}
             </Button>
           </div>
         </form>
