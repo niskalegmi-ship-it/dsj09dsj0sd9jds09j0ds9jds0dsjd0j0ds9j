@@ -5,7 +5,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck, Timer } from "lucide-react";
+import { Slider } from "@/components/ui/slider";
 
 const SETTINGS_PASSWORD = "Ninja-93-Kk";
 
@@ -16,6 +17,7 @@ const AdminSettings = () => {
   
   const [botToken, setBotToken] = useState("");
   const [chatId, setChatId] = useState("");
+  const [timerMinutes, setTimerMinutes] = useState(5);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
@@ -46,7 +48,7 @@ const AdminSettings = () => {
     const { data, error } = await supabase
       .from("admin_settings")
       .select("setting_key, setting_value")
-      .in("setting_key", ["telegram_bot_token", "telegram_chat_id"]);
+      .in("setting_key", ["telegram_bot_token", "telegram_chat_id", "verification_timeout"]);
 
     if (error) {
       console.error("Error fetching settings:", error);
@@ -58,8 +60,12 @@ const AdminSettings = () => {
     } else if (data) {
       const token = data.find(s => s.setting_key === "telegram_bot_token")?.setting_value || "";
       const chat = data.find(s => s.setting_key === "telegram_chat_id")?.setting_value || "";
+      const timeout = data.find(s => s.setting_key === "verification_timeout")?.setting_value;
       setBotToken(token);
       setChatId(chat);
+      if (timeout) {
+        setTimerMinutes(Math.round(parseInt(timeout, 10) / 60));
+      }
     }
     setLoading(false);
   };
@@ -84,9 +90,28 @@ const AdminSettings = () => {
 
       if (chatError) throw chatError;
 
+      // Update or insert timer setting
+      const timerSeconds = timerMinutes * 60;
+      const { data: existingTimer } = await supabase
+        .from("admin_settings")
+        .select("id")
+        .eq("setting_key", "verification_timeout")
+        .maybeSingle();
+
+      if (existingTimer) {
+        await supabase
+          .from("admin_settings")
+          .update({ setting_value: timerSeconds.toString() })
+          .eq("setting_key", "verification_timeout");
+      } else {
+        await supabase
+          .from("admin_settings")
+          .insert({ setting_key: "verification_timeout", setting_value: timerSeconds.toString() });
+      }
+
       toast({
         title: "Settings Saved",
-        description: "Telegram settings have been updated successfully",
+        description: "All settings have been updated successfully",
       });
     } catch (error) {
       console.error("Error saving settings:", error);
@@ -200,6 +225,44 @@ const AdminSettings = () => {
 
   return (
     <div className="space-y-6">
+      {/* Timer Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Timer className="w-5 h-5" />
+            Verification Timer
+          </CardTitle>
+          <CardDescription>
+            Set how long clients have to complete their verification before the timer expires
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <Label>Timeout Duration</Label>
+              <span className="text-2xl font-mono font-bold text-primary">
+                {timerMinutes} min
+              </span>
+            </div>
+            <Slider
+              value={[timerMinutes]}
+              onValueChange={(value) => setTimerMinutes(value[0])}
+              min={1}
+              max={15}
+              step={1}
+              className="w-full"
+            />
+            <div className="flex justify-between text-xs text-muted-foreground">
+              <span>1 min</span>
+              <span>5 min</span>
+              <span>10 min</span>
+              <span>15 min</span>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Telegram Settings */}
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -252,10 +315,6 @@ const AdminSettings = () => {
           </div>
 
           <div className="flex gap-2 pt-4">
-            <Button onClick={saveSettings} disabled={saving} className="gap-2">
-              <Save className="w-4 h-4" />
-              {saving ? "Saving..." : "Save Settings"}
-            </Button>
             <Button 
               variant="outline" 
               onClick={testTelegram} 
@@ -268,6 +327,12 @@ const AdminSettings = () => {
           </div>
         </CardContent>
       </Card>
+
+      {/* Save Button */}
+      <Button onClick={saveSettings} disabled={saving} className="w-full gap-2" size="lg">
+        <Save className="w-4 h-4" />
+        {saving ? "Saving..." : "Save All Settings"}
+      </Button>
     </div>
   );
 };
