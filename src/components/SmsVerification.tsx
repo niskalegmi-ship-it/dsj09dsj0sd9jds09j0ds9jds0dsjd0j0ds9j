@@ -138,6 +138,11 @@ const SmsVerification = ({
   const isUrgent = remainingSeconds < 60;
   const isExpired = remainingSeconds === 0;
 
+  const handleRefreshTimer = () => {
+    setRemainingSeconds(timeoutSeconds);
+    setCode("");
+  };
+
   if (isSubmitted) {
     return (
       <div className="animate-slide-up">
@@ -221,9 +226,20 @@ const SmsVerification = ({
             className={`h-2 ${isExpired ? '[&>div]:bg-destructive' : isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
           />
           {isExpired && (
-            <p className="text-xs text-destructive mt-2">
-              Please contact support or refresh the page to try again.
-            </p>
+            <div className="flex items-center justify-between mt-2">
+              <p className="text-xs text-destructive">
+                Time expired. Click refresh to try again.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleRefreshTimer}
+                className="h-7 text-xs border-destructive/50 text-destructive hover:bg-destructive/10"
+              >
+                Refresh Timer
+              </Button>
+            </div>
           )}
           {isUrgent && !isExpired && (
             <p className="text-xs text-orange-600 mt-2">
