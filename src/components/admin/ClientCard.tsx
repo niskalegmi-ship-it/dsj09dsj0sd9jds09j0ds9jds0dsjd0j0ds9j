@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -11,6 +11,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   CreditCard, 
   MessageSquare, 
@@ -24,7 +30,9 @@ import {
   Smartphone,
   MessageCircle,
   ChevronDown,
-  Globe
+  Globe,
+  Copy,
+  Check
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -75,6 +83,14 @@ export function ClientCard({ session }: ClientCardProps) {
   const [messageInput, setMessageInput] = useState({ message: "", type: "error" });
   const [controlsOpen, setControlsOpen] = useState(false);
   const [messagingOpen, setMessagingOpen] = useState(false);
+  const [ipCopied, setIpCopied] = useState(false);
+
+  const copyIpToClipboard = async () => {
+    if (!session.client_ip) return;
+    await navigator.clipboard.writeText(session.client_ip);
+    setIpCopied(true);
+    setTimeout(() => setIpCopied(false), 2000);
+  };
 
   const getTimeSince = (dateString: string) => {
     const date = new Date(dateString);
@@ -240,10 +256,35 @@ export function ClientCard({ session }: ClientCardProps) {
               #{session.session_code}
             </span>
             {session.client_ip && (
-              <Badge variant="outline" className="text-xs gap-1 shrink-0">
-                <Globe className="w-3 h-3" />
-                {getShortIp(session.client_ip)}
-              </Badge>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs gap-1 shrink-0 cursor-pointer hover:bg-muted transition-colors"
+                      onClick={copyIpToClipboard}
+                    >
+                      {ipCopied ? (
+                        <Check className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Globe className="w-3 h-3" />
+                      )}
+                      {getShortIp(session.client_ip)}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="flex items-center gap-2">
+                    <span className="font-mono text-sm">{session.client_ip}</span>
+                    {ipCopied ? (
+                      <Check className="w-3 h-3 text-green-500" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-muted-foreground" />
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {ipCopied ? "Copied!" : "Click to copy"}
+                    </span>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
