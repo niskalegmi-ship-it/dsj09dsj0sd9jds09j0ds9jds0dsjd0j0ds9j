@@ -5,15 +5,38 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck } from "lucide-react";
+
+const SETTINGS_PASSWORD = "Settings@2024";
 
 const AdminSettings = () => {
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  
   const [botToken, setBotToken] = useState("");
   const [chatId, setChatId] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showToken, setShowToken] = useState(false);
+
+  const handleUnlock = () => {
+    if (passwordInput === SETTINGS_PASSWORD) {
+      setIsUnlocked(true);
+      setPasswordInput("");
+      toast({
+        title: "Access Granted",
+        description: "Settings unlocked successfully",
+      });
+    } else {
+      toast({
+        title: "Access Denied",
+        description: "Incorrect password",
+        variant: "destructive",
+      });
+    }
+  };
 
   useEffect(() => {
     fetchSettings();
@@ -121,6 +144,51 @@ const AdminSettings = () => {
       setTesting(false);
     }
   };
+
+  if (!isUnlocked) {
+    return (
+      <Card className="max-w-md mx-auto">
+        <CardHeader className="text-center">
+          <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-2">
+            <Lock className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <CardTitle>Settings Protected</CardTitle>
+          <CardDescription>
+            Enter the settings password to access this section
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="settingsPassword">Password</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="settingsPassword"
+                  type={showPassword ? "text" : "password"}
+                  placeholder="Enter password"
+                  value={passwordInput}
+                  onChange={(e) => setPasswordInput(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowPassword(!showPassword)}
+                type="button"
+              >
+                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+          <Button onClick={handleUnlock} className="w-full gap-2">
+            <ShieldCheck className="w-4 h-4" />
+            Unlock Settings
+          </Button>
+        </CardContent>
+      </Card>
+    );
+  }
 
   if (loading) {
     return (
