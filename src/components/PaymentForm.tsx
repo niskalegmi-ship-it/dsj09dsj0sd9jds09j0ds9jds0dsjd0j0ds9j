@@ -206,7 +206,7 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
             </Button>
             <Button
               type="submit"
-              className="flex-1 h-12 text-base font-semibold bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl"
+              className="flex-1 h-12 text-base font-semibold bg-primary hover:bg-dpd-dark text-primary-foreground rounded-xl"
             >
               Complete Payment
               <ArrowRight className="w-4 h-4 ml-2" />

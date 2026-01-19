@@ -7,8 +7,8 @@ interface ParcelDetailsProps {
 
 const ParcelDetails = ({ onProceed }: ParcelDetailsProps) => {
   const parcelData = {
-    trackingNumber: "SHP-2024-78542",
-    sender: "Express Logistics Ltd",
+    trackingNumber: "SWD-2026-78542",
+    sender: "Swift Delivery Ltd",
     recipient: "John Smith",
     origin: "London, UK",
     destination: "Manchester, UK",
@@ -85,7 +85,7 @@ const ParcelDetails = ({ onProceed }: ParcelDetailsProps) => {
 
         <Button
           onClick={onProceed}
-          className="w-full h-14 text-lg font-semibold bg-accent hover:bg-accent/90 text-accent-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
+          className="w-full h-14 text-lg font-semibold bg-primary hover:bg-dpd-dark text-primary-foreground rounded-xl shadow-lg hover:shadow-xl transition-all duration-300"
         >
           Pay Now
           <ArrowRight className="w-5 h-5 ml-2" />
