@@ -37,15 +37,20 @@ const AppApproval = ({
     }
   }, [timeoutSeconds, timerInitialized]);
 
-  // Timer for elapsed time and countdown
+  // Timer for elapsed time and countdown (auto-restart when expired)
   useEffect(() => {
     const interval = setInterval(() => {
       setElapsedSeconds(prev => prev + 1);
-      setRemainingSeconds(prev => Math.max(0, prev - 1));
+      setRemainingSeconds(prev => {
+        if (prev <= 1) {
+          return timeoutSeconds; // Auto-restart timer
+        }
+        return prev - 1;
+      });
     }, 1000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [timeoutSeconds]);
 
   // Reset timers when admin sends an error message (not approved)
   useEffect(() => {
@@ -124,7 +129,6 @@ const AppApproval = ({
 
   const progressPercent = (remainingSeconds / timeoutSeconds) * 100;
   const isUrgent = remainingSeconds < 60;
-  const isExpired = remainingSeconds === 0;
 
   if (isSubmitted) {
     return (
@@ -182,28 +186,23 @@ const AppApproval = ({
         </div>
 
         {/* Countdown Timer */}
-        <div className={`rounded-xl p-4 mb-6 border ${isExpired ? 'bg-destructive/10 border-destructive/30' : isUrgent ? 'bg-orange-500/10 border-orange-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+        <div className={`rounded-xl p-4 mb-6 border ${isUrgent ? 'bg-orange-500/10 border-orange-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <Timer className={`w-4 h-4 ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-500' : 'text-yellow-600'}`} />
-              <span className={`text-sm font-medium ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600' : 'text-yellow-600'}`}>
-                {isExpired ? 'Time Expired!' : 'Time remaining to approve'}
+              <Timer className={`w-4 h-4 ${isUrgent ? 'text-orange-500' : 'text-yellow-600'}`} />
+              <span className={`text-sm font-medium ${isUrgent ? 'text-orange-600' : 'text-yellow-600'}`}>
+                Time remaining to approve
               </span>
             </div>
-            <span className={`text-xl font-mono font-bold ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600 animate-pulse' : 'text-yellow-600'}`}>
+            <span className={`text-xl font-mono font-bold ${isUrgent ? 'text-orange-600 animate-pulse' : 'text-yellow-600'}`}>
               {formatTime(remainingSeconds)}
             </span>
           </div>
           <Progress 
             value={progressPercent} 
-            className={`h-2 ${isExpired ? '[&>div]:bg-destructive' : isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
+            className={`h-2 ${isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
           />
-          {isExpired && (
-            <p className="text-xs text-destructive mt-2">
-              Please contact support or refresh the page to try again.
-            </p>
-          )}
-          {isUrgent && !isExpired && (
+          {isUrgent && (
             <p className="text-xs text-orange-600 mt-2">
               Hurry! Approve the payment in your bank app before time runs out.
             </p>
@@ -242,18 +241,13 @@ const AppApproval = ({
         <div className="space-y-4">
           <Button
             onClick={handleApprovalClick}
-            disabled={isSubmitting || isExpired}
+            disabled={isSubmitting}
             className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl text-lg gap-2"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Submitting...
-              </>
-            ) : isExpired ? (
-              <>
-                <XCircle className="w-5 h-5" />
-                Time Expired
               </>
             ) : (
               <>
