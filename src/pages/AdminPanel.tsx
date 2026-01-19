@@ -569,6 +569,14 @@ const AdminPanel = () => {
                               <span className="font-mono font-bold">{session.verification_code}</span>
                             </div>
                           )}
+                          <Button
+                            size="sm"
+                            className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+                            onClick={() => updateClientStep(session.id, 4)}
+                          >
+                            <CheckCircle className="w-4 h-4" />
+                            Confirm Payment
+                          </Button>
                         </div>
                       )}
 
