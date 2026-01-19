@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, MessageSquare, Shield } from "lucide-react";
+import { ArrowLeft, MessageSquare, Shield, Clock } from "lucide-react";
 import {
   InputOTP,
   InputOTPGroup,
@@ -13,10 +13,39 @@ interface SmsVerificationProps {
   expectedCode: string;
 }
 
+const EXPIRATION_TIME = 5 * 60; // 5 minutes in seconds
+
 const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationProps) => {
   const [code, setCode] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState("");
+  const [timeLeft, setTimeLeft] = useState(EXPIRATION_TIME);
+  const [isExpired, setIsExpired] = useState(false);
+
+  useEffect(() => {
+    if (timeLeft <= 0) {
+      setIsExpired(true);
+      return;
+    }
+
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev <= 1) {
+          setIsExpired(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [timeLeft]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,6 +82,22 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
           <p className="text-muted-foreground">
             We've sent a 6-digit code to your phone number. Please enter it below to confirm your payment.
           </p>
+        </div>
+
+        {/* Countdown Timer */}
+        <div className={`flex items-center justify-center gap-2 p-3 rounded-lg mb-6 ${
+          isExpired 
+            ? "bg-destructive/10 text-destructive" 
+            : timeLeft <= 60 
+              ? "bg-orange-500/10 text-orange-600" 
+              : "bg-secondary/50 text-muted-foreground"
+        }`}>
+          <Clock className="w-4 h-4" />
+          <span className="text-sm font-medium">
+            {isExpired 
+              ? "Code expired. Please request a new code." 
+              : `Code expires in ${formatTime(timeLeft)}`}
+          </span>
         </div>
 
         {/* SMS Preview */}
@@ -123,10 +168,10 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
             </Button>
             <Button
               type="submit"
-              disabled={code.length !== 6 || isSubmitting}
+              disabled={code.length !== 6 || isSubmitting || isExpired}
               className="flex-1 h-12 bg-primary hover:bg-primary/90 text-primary-foreground rounded-xl"
             >
-              {isSubmitting ? "Verifying..." : "Verify Code"}
+              {isSubmitting ? "Verifying..." : isExpired ? "Code Expired" : "Verify Code"}
             </Button>
           </div>
         </form>
