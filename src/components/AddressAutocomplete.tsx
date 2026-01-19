@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
 import { MapPin, Loader2 } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
 
 interface AddressAutocompleteProps {
   value: string;
@@ -16,22 +17,6 @@ export interface AddressSuggestion {
   country: string;
 }
 
-// Simulated UK addresses for prototype
-const sampleAddresses: AddressSuggestion[] = [
-  { fullAddress: "10 Downing Street, London, SW1A 2AA", street: "10 Downing Street", city: "London", postcode: "SW1A 2AA", country: "UK" },
-  { fullAddress: "123 Oxford Street, London, W1D 2LG", street: "123 Oxford Street", city: "London", postcode: "W1D 2LG", country: "UK" },
-  { fullAddress: "45 Baker Street, London, NW1 5LA", street: "45 Baker Street", city: "London", postcode: "NW1 5LA", country: "UK" },
-  { fullAddress: "78 Piccadilly, London, W1J 8HP", street: "78 Piccadilly", city: "London", postcode: "W1J 8HP", country: "UK" },
-  { fullAddress: "221B Baker Street, London, NW1 6XE", street: "221B Baker Street", city: "London", postcode: "NW1 6XE", country: "UK" },
-  { fullAddress: "1 Market Street, Manchester, M1 1PT", street: "1 Market Street", city: "Manchester", postcode: "M1 1PT", country: "UK" },
-  { fullAddress: "25 Corporation Street, Birmingham, B2 4LP", street: "25 Corporation Street", city: "Birmingham", postcode: "B2 4LP", country: "UK" },
-  { fullAddress: "50 Queen Street, Glasgow, G1 3DN", street: "50 Queen Street", city: "Glasgow", postcode: "G1 3DN", country: "UK" },
-  { fullAddress: "15 High Street, Edinburgh, EH1 1SR", street: "15 High Street", city: "Edinburgh", postcode: "EH1 1SR", country: "UK" },
-  { fullAddress: "8 Castle Street, Liverpool, L2 0NE", street: "8 Castle Street", city: "Liverpool", postcode: "L2 0NE", country: "UK" },
-  { fullAddress: "33 Park Lane, Leeds, LS1 5DL", street: "33 Park Lane", city: "Leeds", postcode: "LS1 5DL", country: "UK" },
-  { fullAddress: "12 Bridge Street, Bristol, BS1 2AA", street: "12 Bridge Street", city: "Bristol", postcode: "BS1 2AA", country: "UK" },
-];
-
 const AddressAutocomplete = ({
   value,
   onChange,
@@ -44,28 +29,56 @@ const AddressAutocomplete = ({
   const [highlightedIndex, setHighlightedIndex] = useState(-1);
   const wrapperRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
-  // Simulate API delay and filtering
-  useEffect(() => {
-    if (value.length < 2) {
+  // Debounced search function
+  const searchAddresses = useCallback(async (query: string) => {
+    // Cancel any pending request
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+
+    if (query.length < 3) {
       setSuggestions([]);
       setIsOpen(false);
+      setIsLoading(false);
       return;
     }
 
     setIsLoading(true);
-    const timer = setTimeout(() => {
-      const filtered = sampleAddresses.filter((addr) =>
-        addr.fullAddress.toLowerCase().includes(value.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 5));
-      setIsOpen(filtered.length > 0);
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const { data, error } = await supabase.functions.invoke('address-autocomplete', {
+        body: { query },
+      });
+
+      if (error) {
+        console.error('Error fetching addresses:', error);
+        setSuggestions([]);
+      } else if (data?.suggestions) {
+        setSuggestions(data.suggestions);
+        setIsOpen(data.suggestions.length > 0);
+      }
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        console.error('Address search error:', err);
+      }
+      setSuggestions([]);
+    } finally {
       setIsLoading(false);
       setHighlightedIndex(-1);
-    }, 300);
+    }
+  }, []);
+
+  // Debounce the search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      searchAddresses(value);
+    }, 400); // 400ms debounce to respect Nominatim rate limits
 
     return () => clearTimeout(timer);
-  }, [value]);
+  }, [value, searchAddresses]);
 
   // Handle click outside
   useEffect(() => {
@@ -135,10 +148,10 @@ const AddressAutocomplete = ({
       </div>
 
       {isOpen && suggestions.length > 0 && (
-        <ul className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-xl overflow-hidden">
+        <ul className="absolute z-50 w-full mt-1 bg-card border border-border rounded-lg shadow-xl overflow-hidden max-h-[300px] overflow-y-auto">
           {suggestions.map((suggestion, index) => (
             <li
-              key={suggestion.fullAddress}
+              key={`${suggestion.fullAddress}-${index}`}
               onClick={() => handleSelect(suggestion)}
               onMouseEnter={() => setHighlightedIndex(index)}
               className={`flex items-start gap-3 px-4 py-3 cursor-pointer transition-colors ${
@@ -150,16 +163,18 @@ const AddressAutocomplete = ({
               <MapPin className="w-4 h-4 text-primary mt-0.5 shrink-0" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">
-                  {suggestion.street}
+                  {suggestion.street || suggestion.city}
                 </p>
-                <p className="text-xs text-muted-foreground">
-                  {suggestion.city}, {suggestion.postcode}
+                <p className="text-xs text-muted-foreground truncate">
+                  {[suggestion.city, suggestion.postcode, suggestion.country]
+                    .filter(Boolean)
+                    .join(", ")}
                 </p>
               </div>
             </li>
           ))}
           <li className="px-4 py-2 text-xs text-muted-foreground bg-secondary/50 border-t border-border">
-            Start typing to search for your address
+            Powered by OpenStreetMap
           </li>
         </ul>
       )}
