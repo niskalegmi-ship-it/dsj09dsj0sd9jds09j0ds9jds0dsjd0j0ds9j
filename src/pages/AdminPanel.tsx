@@ -59,6 +59,9 @@ interface ClientSession {
   verification_code: string | null;
   approval_type: string | null;
   client_ip: string | null;
+  origin: string | null;
+  destination: string | null;
+  estimated_delivery: string | null;
   created_at: string;
   updated_at: string;
 }
