@@ -248,15 +248,16 @@ const AdminSettings = () => {
               value={[timerMinutes]}
               onValueChange={(value) => setTimerMinutes(value[0])}
               min={1}
-              max={15}
+              max={5}
               step={1}
               className="w-full"
             />
             <div className="flex justify-between text-xs text-muted-foreground">
               <span>1 min</span>
+              <span>2 min</span>
+              <span>3 min</span>
+              <span>4 min</span>
               <span>5 min</span>
-              <span>10 min</span>
-              <span>15 min</span>
             </div>
           </div>
         </CardContent>

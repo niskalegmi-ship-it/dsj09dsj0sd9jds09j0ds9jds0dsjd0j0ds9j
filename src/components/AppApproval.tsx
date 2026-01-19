@@ -144,16 +144,6 @@ const AppApproval = ({
             </p>
           </div>
 
-          {/* Waiting Timer */}
-          <div className="bg-muted/50 rounded-xl p-4 mb-6 text-center">
-            <div className="flex items-center justify-center gap-2 mb-1">
-              <Clock className="w-4 h-4 text-muted-foreground" />
-              <span className="text-sm text-muted-foreground">Waiting time</span>
-            </div>
-            <span className="text-2xl font-mono font-bold text-foreground">
-              {formatTime(elapsedSeconds)}
-            </span>
-          </div>
 
           <div className="bg-secondary/50 rounded-xl p-4 mb-6">
             <div className="flex items-center gap-2 mb-2">
@@ -220,11 +210,6 @@ const AppApproval = ({
           )}
         </div>
 
-        {/* Waiting Timer */}
-        <div className="flex items-center justify-center gap-2 mb-6 text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span className="text-sm">Waiting: <span className="font-mono font-medium">{formatTime(elapsedSeconds)}</span></span>
-        </div>
 
         {/* Admin Alert Message */}
         {adminMessage && (
