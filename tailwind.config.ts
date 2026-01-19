@@ -55,9 +55,10 @@ export default {
           DEFAULT: "hsl(var(--success))",
           foreground: "hsl(var(--success-foreground))",
         },
-        navy: {
-          DEFAULT: "hsl(var(--navy))",
-          light: "hsl(var(--navy-light))",
+        dpd: {
+          DEFAULT: "hsl(var(--dpd-red))",
+          dark: "hsl(var(--dpd-dark))",
+          light: "hsl(var(--dpd-light))",
         },
       },
       borderRadius: {

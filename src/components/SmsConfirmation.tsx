@@ -38,9 +38,9 @@ const SmsConfirmation = ({ onReset }: SmsConfirmationProps) => {
 
           <div className="bg-card rounded-lg p-4 border border-border">
             <p className="text-sm leading-relaxed">
-              <span className="font-semibold">Express Logistics:</span> Payment of
-              £45.99 received for shipment SHP-2024-78542. Your parcel is now
-              confirmed for delivery. Track at expresslogistics.com/track
+              <span className="font-semibold">Swift Delivery:</span> Payment of
+              £45.99 received for shipment SWD-2026-78542. Your parcel is now
+              confirmed for delivery. Track at swiftdelivery.com/track
             </p>
           </div>
         </div>

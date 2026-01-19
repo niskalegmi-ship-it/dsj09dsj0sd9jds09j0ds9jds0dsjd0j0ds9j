@@ -47,7 +47,7 @@ const Index = () => {
       </main>
 
       <footer className="py-6 text-center text-sm text-muted-foreground">
-        <p>© 2026 Express Logistics. Secure payments powered by your gateway.</p>
+        <p>© 2026 Swift Delivery. Secure payments powered by your gateway.</p>
       </footer>
     </div>
   );
