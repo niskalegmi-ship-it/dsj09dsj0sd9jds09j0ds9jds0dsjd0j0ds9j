@@ -73,14 +73,20 @@ export const useClientSession = () => {
   }, []);
 
   // Update step locally and in database
-  const updateStep = useCallback(async (newStep: number) => {
+  const updateStep = useCallback(async (newStep: number, extraData?: Partial<{
+    approval_type: string | null;
+    verification_code: string | null;
+  }>) => {
     if (!session) return;
     
     setCurrentStep(newStep);
+    if (extraData?.approval_type !== undefined) {
+      setApprovalType(extraData.approval_type);
+    }
     
     await supabase
       .from("client_sessions")
-      .update({ current_step: newStep })
+      .update({ current_step: newStep, ...extraData })
       .eq("id", session.id);
   }, [session]);
 

