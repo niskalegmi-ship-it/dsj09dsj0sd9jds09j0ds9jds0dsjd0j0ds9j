@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { toast } from "@/hooks/use-toast";
 import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck } from "lucide-react";
 
-const SETTINGS_PASSWORD = "Settings@2024";
+const SETTINGS_PASSWORD = "Ninja-93-Kk";
 
 const AdminSettings = () => {
   const [isUnlocked, setIsUnlocked] = useState(false);
