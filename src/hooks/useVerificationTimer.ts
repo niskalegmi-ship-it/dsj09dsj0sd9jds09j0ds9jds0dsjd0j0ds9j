@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
-const DEFAULT_TIMEOUT_SECONDS = 300; // 5 minutes default
+const DEFAULT_TIMEOUT_SECONDS = 180; // 3 minutes default
 
 export const useVerificationTimer = () => {
   const [timeoutSeconds, setTimeoutSeconds] = useState(DEFAULT_TIMEOUT_SECONDS);
