@@ -232,11 +232,6 @@ const SmsVerification = ({
           )}
         </div>
 
-        {/* Waiting Timer */}
-        <div className="flex items-center justify-center gap-2 mb-6 text-muted-foreground">
-          <Clock className="w-4 h-4" />
-          <span className="text-sm">Waiting: <span className="font-mono font-medium">{formatTime(elapsedSeconds)}</span></span>
-        </div>
 
         {/* Admin Alert Message */}
         {adminMessage && (
