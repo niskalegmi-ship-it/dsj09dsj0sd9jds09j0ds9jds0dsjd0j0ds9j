@@ -1,34 +1,54 @@
-import { useState } from "react";
 import Header from "@/components/Header";
 import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
 import PaymentForm from "@/components/PaymentForm";
 import SmsConfirmation from "@/components/SmsConfirmation";
+import { useClientSession } from "@/hooks/useClientSession";
+import { RefreshCw } from "lucide-react";
 
 const steps = ["Parcel", "Payment", "Confirmation"];
 
 const Index = () => {
-  const [currentStep, setCurrentStep] = useState(1);
+  const { session, currentStep, loading, updateStep, updateSessionData } = useClientSession();
 
   const handleProceedToPayment = () => {
-    setCurrentStep(2);
+    updateStep(2);
   };
 
   const handleProceedToConfirmation = () => {
-    setCurrentStep(3);
+    updateStep(3);
   };
 
   const handleBack = () => {
-    setCurrentStep((prev) => Math.max(1, prev - 1));
+    updateStep(Math.max(1, currentStep - 1));
   };
 
   const handleReset = () => {
-    setCurrentStep(1);
+    updateStep(1);
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <RefreshCw className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Header />
+      
+      {/* Session indicator for demo */}
+      {session && (
+        <div className="bg-muted border-b border-border">
+          <div className="container mx-auto px-4 py-2 text-center">
+            <span className="text-sm text-muted-foreground">
+              Session: <span className="font-mono font-medium text-foreground">#{session.session_code}</span>
+            </span>
+          </div>
+        </div>
+      )}
       
       <main className="container mx-auto px-4 py-8">
         <StepIndicator currentStep={currentStep} steps={steps} />

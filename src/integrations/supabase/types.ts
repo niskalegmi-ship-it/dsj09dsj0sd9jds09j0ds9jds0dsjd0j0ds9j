@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      client_sessions: {
+        Row: {
+          amount: number | null
+          client_name: string | null
+          created_at: string
+          current_step: number
+          id: string
+          parcel_tracking: string | null
+          phone_number: string | null
+          session_code: string
+          status: string | null
+          updated_at: string
+        }
+        Insert: {
+          amount?: number | null
+          client_name?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          parcel_tracking?: string | null
+          phone_number?: string | null
+          session_code: string
+          status?: string | null
+          updated_at?: string
+        }
+        Update: {
+          amount?: number | null
+          client_name?: string | null
+          created_at?: string
+          current_step?: number
+          id?: string
+          parcel_tracking?: string | null
+          phone_number?: string | null
+          session_code?: string
+          status?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
