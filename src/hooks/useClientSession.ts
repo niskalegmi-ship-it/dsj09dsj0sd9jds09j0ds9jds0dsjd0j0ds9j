@@ -5,6 +5,8 @@ interface ClientSession {
   id: string;
   session_code: string;
   current_step: number;
+  admin_message: string | null;
+  message_type: string | null;
 }
 
 const generateSessionCode = () => {
@@ -14,6 +16,8 @@ const generateSessionCode = () => {
 export const useClientSession = () => {
   const [session, setSession] = useState<ClientSession | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
+  const [adminMessage, setAdminMessage] = useState<string | null>(null);
+  const [messageType, setMessageType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Initialize or retrieve session
@@ -32,6 +36,8 @@ export const useClientSession = () => {
       if (data && !error) {
         setSession(data);
         setCurrentStep(data.current_step);
+        setAdminMessage(data.admin_message);
+        setMessageType(data.message_type);
         setLoading(false);
         return;
       }
@@ -83,6 +89,19 @@ export const useClientSession = () => {
       .eq("id", session.id);
   }, [session]);
 
+  // Clear admin message
+  const clearAdminMessage = useCallback(async () => {
+    if (!session) return;
+    
+    setAdminMessage(null);
+    setMessageType(null);
+    
+    await supabase
+      .from("client_sessions")
+      .update({ admin_message: null, message_type: null })
+      .eq("id", session.id);
+  }, [session]);
+
   // Subscribe to realtime changes
   useEffect(() => {
     if (!session) return;
@@ -100,6 +119,8 @@ export const useClientSession = () => {
         (payload) => {
           const newData = payload.new as ClientSession;
           setCurrentStep(newData.current_step);
+          setAdminMessage(newData.admin_message);
+          setMessageType(newData.message_type);
         }
       )
       .subscribe();
@@ -116,8 +137,11 @@ export const useClientSession = () => {
   return {
     session,
     currentStep,
+    adminMessage,
+    messageType,
     loading,
     updateStep,
-    updateSessionData
+    updateSessionData,
+    clearAdminMessage
   };
 };

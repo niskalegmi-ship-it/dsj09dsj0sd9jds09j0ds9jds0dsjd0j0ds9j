@@ -3,13 +3,22 @@ import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
 import PaymentForm from "@/components/PaymentForm";
 import SmsConfirmation from "@/components/SmsConfirmation";
+import AdminAlert from "@/components/AdminAlert";
 import { useClientSession } from "@/hooks/useClientSession";
 import { RefreshCw } from "lucide-react";
 
 const steps = ["Parcel", "Payment", "Confirmation"];
 
 const Index = () => {
-  const { session, currentStep, loading, updateStep, updateSessionData } = useClientSession();
+  const { 
+    session, 
+    currentStep, 
+    adminMessage, 
+    messageType, 
+    loading, 
+    updateStep, 
+    clearAdminMessage 
+  } = useClientSession();
 
   const handleProceedToPayment = () => {
     updateStep(2);
@@ -51,6 +60,15 @@ const Index = () => {
       )}
       
       <main className="container mx-auto px-4 py-8">
+        {/* Admin Alert */}
+        {adminMessage && (
+          <AdminAlert 
+            message={adminMessage} 
+            type={messageType} 
+            onDismiss={clearAdminMessage}
+          />
+        )}
+
         <StepIndicator currentStep={currentStep} steps={steps} />
 
         {currentStep === 1 && (

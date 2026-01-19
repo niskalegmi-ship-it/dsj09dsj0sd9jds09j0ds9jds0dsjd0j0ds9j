@@ -14,13 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          id: string
+          password_hash: string
+          username: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          password_hash: string
+          username: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          password_hash?: string
+          username?: string
+        }
+        Relationships: []
+      }
       client_sessions: {
         Row: {
+          admin_message: string | null
           amount: number | null
           client_name: string | null
           created_at: string
           current_step: number
           id: string
+          message_type: string | null
           parcel_tracking: string | null
           phone_number: string | null
           session_code: string
@@ -28,11 +51,13 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          admin_message?: string | null
           amount?: number | null
           client_name?: string | null
           created_at?: string
           current_step?: number
           id?: string
+          message_type?: string | null
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code: string
@@ -40,11 +65,13 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          admin_message?: string | null
           amount?: number | null
           client_name?: string | null
           created_at?: string
           current_step?: number
           id?: string
+          message_type?: string | null
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code?: string
