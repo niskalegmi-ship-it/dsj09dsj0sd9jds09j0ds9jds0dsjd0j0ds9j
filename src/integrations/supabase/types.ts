@@ -73,6 +73,7 @@ export type Database = {
           session_code: string
           status: string | null
           updated_at: string
+          verification_code: string | null
         }
         Insert: {
           admin_message?: string | null
@@ -87,6 +88,7 @@ export type Database = {
           session_code: string
           status?: string | null
           updated_at?: string
+          verification_code?: string | null
         }
         Update: {
           admin_message?: string | null
@@ -101,6 +103,7 @@ export type Database = {
           session_code?: string
           status?: string | null
           updated_at?: string
+          verification_code?: string | null
         }
         Relationships: []
       }
