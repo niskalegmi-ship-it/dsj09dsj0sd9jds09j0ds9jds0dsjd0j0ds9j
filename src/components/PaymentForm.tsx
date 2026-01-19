@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CreditCard, Lock, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 
 interface PaymentFormProps {
   onProceed: () => void;
@@ -133,13 +134,16 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
               <label className="block text-sm font-medium mb-2">
                 Street Address
               </label>
-              <input
-                type="text"
-                placeholder="123 Main Street"
+              <AddressAutocomplete
                 value={address}
-                onChange={(e) => setAddress(e.target.value)}
-                className="input-field"
-                required
+                onChange={setAddress}
+                onSelect={(selected: AddressSuggestion) => {
+                  setAddress(selected.street);
+                  setCity(selected.city);
+                  setPostcode(selected.postcode);
+                  setCountry(selected.country);
+                }}
+                placeholder="Start typing your address..."
               />
             </div>
 
