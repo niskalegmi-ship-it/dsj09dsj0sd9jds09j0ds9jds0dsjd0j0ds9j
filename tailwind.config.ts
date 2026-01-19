@@ -74,8 +74,9 @@ export default {
           to: { height: "0" },
         },
         "shrink": {
-          from: { width: "100%" },
-          to: { width: "0%" },
+          "0%": { width: "100%", backgroundColor: "rgb(234 179 8)" },
+          "50%": { width: "50%", backgroundColor: "rgb(249 115 22)" },
+          "100%": { width: "0%", backgroundColor: "rgb(239 68 68)" },
         },
       },
       animation: {

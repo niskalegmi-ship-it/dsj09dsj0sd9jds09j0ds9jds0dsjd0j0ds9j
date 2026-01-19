@@ -58,8 +58,8 @@ const SmsVerification = ({
             description: (
               <div className="space-y-2">
                 <p>Please enter your verification code before time runs out.</p>
-                <div className="h-1 bg-yellow-200 rounded-full overflow-hidden">
-                  <div className="h-full bg-yellow-500 rounded-full animate-[shrink_3s_linear_forwards]" />
+                <div className="h-1 bg-muted rounded-full overflow-hidden">
+                  <div className="h-full rounded-full animate-shrink" />
                 </div>
               </div>
             ),
