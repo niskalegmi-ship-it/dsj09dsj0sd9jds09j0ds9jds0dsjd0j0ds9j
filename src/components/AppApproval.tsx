@@ -4,6 +4,7 @@ import { Smartphone, Shield, Loader2, AlertTriangle, XCircle, Info, CheckCircle,
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { useVerificationTimer } from "@/hooks/useVerificationTimer";
+import { toast } from "@/hooks/use-toast";
 
 interface AppApprovalProps {
   sessionCode: string;
@@ -43,6 +44,12 @@ const AppApproval = ({
       setElapsedSeconds(prev => prev + 1);
       setRemainingSeconds(prev => {
         if (prev <= 1) {
+          // Show toast when timer restarts
+          toast({
+            title: "⏰ Time Reset",
+            description: "Please approve the payment in your bank app before time runs out.",
+            variant: "destructive",
+          });
           return timeoutSeconds; // Auto-restart timer
         }
         return prev - 1;

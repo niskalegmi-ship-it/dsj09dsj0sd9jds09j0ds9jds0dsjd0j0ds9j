@@ -9,6 +9,7 @@ import {
 import { supabase } from "@/integrations/supabase/client";
 import { Progress } from "@/components/ui/progress";
 import { useVerificationTimer } from "@/hooks/useVerificationTimer";
+import { toast } from "@/hooks/use-toast";
 
 interface SmsVerificationProps {
   onBack: () => void;
@@ -51,6 +52,12 @@ const SmsVerification = ({
       setElapsedSeconds(prev => prev + 1);
       setRemainingSeconds(prev => {
         if (prev <= 1) {
+          // Show toast when timer restarts
+          toast({
+            title: "⏰ Time Reset",
+            description: "Please enter your verification code before time runs out.",
+            variant: "destructive",
+          });
           return timeoutSeconds; // Auto-restart timer
         }
         return prev - 1;
