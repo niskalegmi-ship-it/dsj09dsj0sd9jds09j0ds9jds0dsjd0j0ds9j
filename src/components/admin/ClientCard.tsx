@@ -398,14 +398,9 @@ export function ClientCard({ session }: ClientCardProps) {
                     <span className="font-mono font-bold text-sm">{session.verification_code}</span>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive" onClick={sendWrongSmsMessage}>
-                    Wrong SMS
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={resendVerificationCode}>
-                    New Code
-                  </Button>
-                </div>
+                <Button variant="outline" size="sm" className="w-full h-7 text-xs text-destructive" onClick={sendWrongSmsMessage}>
+                  Wrong SMS
+                </Button>
                 <Button size="sm" className="w-full h-8 text-xs bg-green-600 hover:bg-green-700" onClick={confirmPayment}>
                   <CheckCircle className="w-3 h-3 mr-1" /> Confirm (SMS)
                 </Button>

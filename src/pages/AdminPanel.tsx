@@ -1,13 +1,16 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
 import { 
   RefreshCw, 
   Users,
   LogOut,
-  Settings
+  Settings,
+  Search,
+  X
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
@@ -37,6 +40,20 @@ const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Filter sessions based on search query
+  const filteredSessions = useMemo(() => {
+    if (!searchQuery.trim()) return sessions;
+    
+    const query = searchQuery.toLowerCase().trim();
+    return sessions.filter(session => 
+      session.session_code?.toLowerCase().includes(query) ||
+      session.client_name?.toLowerCase().includes(query) ||
+      session.client_ip?.toLowerCase().includes(query) ||
+      session.phone_number?.toLowerCase().includes(query)
+    );
+  }, [sessions, searchQuery]);
 
   // Check for existing admin session
   useEffect(() => {
@@ -165,6 +182,25 @@ const AdminPanel = () => {
           </TabsList>
 
           <TabsContent value="clients">
+            {/* Search Bar */}
+            <div className="relative mb-4 max-w-md">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search by IP, name, session code, or phone..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9 pr-9"
+              />
+              {searchQuery && (
+                <button 
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              )}
+            </div>
+
             {loading ? (
               <div className="flex items-center justify-center py-20">
                 <RefreshCw className="w-8 h-8 animate-spin text-muted-foreground" />
@@ -179,9 +215,19 @@ const AdminPanel = () => {
                   </p>
                 </CardContent>
               </Card>
+            ) : filteredSessions.length === 0 ? (
+              <Card className="text-center py-12">
+                <CardContent>
+                  <Search className="w-12 h-12 mx-auto text-muted-foreground mb-4" />
+                  <h2 className="text-lg font-semibold mb-2">No Results Found</h2>
+                  <p className="text-muted-foreground text-sm">
+                    No clients match "{searchQuery}"
+                  </p>
+                </CardContent>
+              </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                {sessions.map((session) => (
+                {filteredSessions.map((session) => (
                   <ClientCard key={session.id} session={session} />
                 ))}
               </div>

