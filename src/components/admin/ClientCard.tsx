@@ -201,6 +201,19 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
     toast({ title: "Sent back to card page" });
   };
 
+  const sendBackToParcel = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 1,
+        approval_type: null,
+        admin_message: null,
+        message_type: null
+      })
+      .eq("id", session.id);
+    toast({ title: "Sent back to parcel page" });
+  };
+
   const sendToSmsVerification = async () => {
     await supabase
       .from("client_sessions")
@@ -407,9 +420,14 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
                 <Smartphone className="w-3 h-3 mr-1" /> App
               </Button>
             </div>
-            <Button variant="outline" size="sm" className="w-full h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
-              <CreditCard className="w-3 h-3 mr-1" /> Wrong Card
-            </Button>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={sendBackToParcel}>
+                <Package className="w-3 h-3 mr-1" /> Back to Parcel
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
+                <CreditCard className="w-3 h-3 mr-1" /> Wrong Card
+              </Button>
+            </div>
           </div>
         )}
 
@@ -465,9 +483,14 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
                     <CheckCircle className="w-3 h-3 mr-1" /> Confirm
                   </Button>
                 </div>
-                <Button variant="outline" size="sm" className="w-full h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
-                  Wrong Card
-                </Button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={sendBackToParcel}>
+                    <Package className="w-3 h-3 mr-1" /> Back to Parcel
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
+                    Wrong Card
+                  </Button>
+                </div>
               </div>
             )}
           </div>
