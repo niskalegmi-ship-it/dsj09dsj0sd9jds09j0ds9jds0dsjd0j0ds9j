@@ -87,11 +87,12 @@ const Index = () => {
           <PaymentForm onProceed={handleProceedToVerification} onBack={handleBack} />
         )}
 
-        {currentStep === 3 && (
+        {currentStep === 3 && session && (
           <SmsVerification 
-            onProceed={handleProceedToConfirmation} 
             onBack={handleBack} 
-            expectedCode={verificationCode || ""}
+            sessionCode={session.session_code}
+            clientName={session.client_name}
+            phoneNumber={session.phone_number}
           />
         )}
 
