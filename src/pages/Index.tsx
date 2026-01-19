@@ -1,4 +1,3 @@
-import { useState } from "react";
 import Header from "@/components/Header";
 import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
@@ -17,19 +16,19 @@ const Index = () => {
     currentStep, 
     adminMessage, 
     messageType, 
+    verificationCode,
     loading, 
-    updateStep, 
+    updateStep,
+    updateVerificationCode,
     clearAdminMessage 
   } = useClientSession();
-
-  const [verificationCode, setVerificationCode] = useState("");
 
   const handleProceedToPayment = () => {
     updateStep(2);
   };
 
   const handleProceedToVerification = (code: string) => {
-    setVerificationCode(code);
+    updateVerificationCode(code);
     updateStep(3);
   };
 
@@ -92,7 +91,7 @@ const Index = () => {
           <SmsVerification 
             onProceed={handleProceedToConfirmation} 
             onBack={handleBack} 
-            expectedCode={verificationCode}
+            expectedCode={verificationCode || ""}
           />
         )}
 

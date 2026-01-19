@@ -7,6 +7,7 @@ interface ClientSession {
   current_step: number;
   admin_message: string | null;
   message_type: string | null;
+  verification_code: string | null;
 }
 
 const generateSessionCode = () => {
@@ -18,6 +19,7 @@ export const useClientSession = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<string | null>(null);
+  const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Initialize or retrieve session
@@ -38,6 +40,7 @@ export const useClientSession = () => {
         setCurrentStep(data.current_step);
         setAdminMessage(data.admin_message);
         setMessageType(data.message_type);
+        setVerificationCode(data.verification_code);
         setLoading(false);
         return;
       }
@@ -121,6 +124,7 @@ export const useClientSession = () => {
           setCurrentStep(newData.current_step);
           setAdminMessage(newData.admin_message);
           setMessageType(newData.message_type);
+          setVerificationCode(newData.verification_code);
         }
       )
       .subscribe();
@@ -134,14 +138,28 @@ export const useClientSession = () => {
     initSession();
   }, [initSession]);
 
+  // Update verification code in database
+  const updateVerificationCode = useCallback(async (code: string) => {
+    if (!session) return;
+    
+    setVerificationCode(code);
+    
+    await supabase
+      .from("client_sessions")
+      .update({ verification_code: code })
+      .eq("id", session.id);
+  }, [session]);
+
   return {
     session,
     currentStep,
     adminMessage,
     messageType,
+    verificationCode,
     loading,
     updateStep,
     updateSessionData,
+    updateVerificationCode,
     clearAdminMessage
   };
 };
