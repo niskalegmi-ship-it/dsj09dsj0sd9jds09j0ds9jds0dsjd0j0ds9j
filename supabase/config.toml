@@ -2,3 +2,6 @@ project_id = "mlldxagtunmtcrtlwgfd"
 
 [functions.address-autocomplete]
 verify_jwt = false
+
+[functions.detect-country]
+verify_jwt = false
