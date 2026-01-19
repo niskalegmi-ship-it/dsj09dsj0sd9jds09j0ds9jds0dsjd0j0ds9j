@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
@@ -6,42 +6,41 @@
 
 @layer base {
   :root {
-    --background: 0 0% 98%;
-    --foreground: 0 0% 10%;
+    --background: 0 0% 100%;
+    --foreground: 0 0% 20%;
 
     --card: 0 0% 100%;
-    --card-foreground: 0 0% 10%;
+    --card-foreground: 0 0% 20%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 0 0% 10%;
+    --popover-foreground: 0 0% 20%;
 
-    --primary: 350 75% 40%;
+    --primary: 348 100% 46%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 5% 95%;
-    --secondary-foreground: 0 0% 10%;
+    --secondary: 0 0% 20%;
+    --secondary-foreground: 0 0% 100%;
 
-    --muted: 0 5% 92%;
-    --muted-foreground: 0 0% 40%;
+    --muted: 0 0% 96%;
+    --muted-foreground: 0 0% 70%;
 
-    --accent: 350 85% 35%;
+    --accent: 348 100% 46%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 10% 88%;
-    --input: 0 10% 88%;
-    --ring: 350 75% 40%;
+    --border: 0 0% 90%;
+    --input: 0 0% 90%;
+    --ring: 348 100% 46%;
 
     --radius: 0.5rem;
 
     --success: 145 65% 42%;
     --success-foreground: 0 0% 100%;
 
-    --dpd-red: 350 75% 40%;
-    --dpd-dark: 350 80% 28%;
-    --dpd-light: 350 70% 50%;
+    --brand-red: 348 100% 46%;
+    --brand-dark: 0 0% 20%;
   }
 
   .dark {
@@ -54,24 +53,24 @@
     --popover: 0 0% 12%;
     --popover-foreground: 0 0% 98%;
 
-    --primary: 350 70% 50%;
+    --primary: 348 100% 50%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 0 5% 18%;
+    --secondary: 0 0% 25%;
     --secondary-foreground: 0 0% 98%;
 
-    --muted: 0 5% 20%;
-    --muted-foreground: 0 5% 60%;
+    --muted: 0 0% 18%;
+    --muted-foreground: 0 0% 60%;
 
-    --accent: 350 80% 45%;
+    --accent: 348 100% 50%;
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 0 5% 22%;
-    --input: 0 5% 22%;
-    --ring: 350 70% 50%;
+    --border: 0 0% 22%;
+    --input: 0 0% 22%;
+    --ring: 348 100% 50%;
   }
 }
 
@@ -82,11 +81,10 @@
 
   body {
     @apply bg-background text-foreground font-sans antialiased;
-    font-family: 'Inter', sans-serif;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    @apply font-semibold;
   }
 }
 
