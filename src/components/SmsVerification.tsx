@@ -57,6 +57,7 @@ const SmsVerification = ({
             title: "⏰ Time Reset",
             description: "Please enter your verification code before time runs out.",
             className: "bg-yellow-500/10 border-yellow-500/50 text-yellow-700",
+            duration: 3000,
           });
           return timeoutSeconds; // Auto-restart timer
         }
