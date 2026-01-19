@@ -77,10 +77,10 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
             </div>
           </div>
           <h2 className="text-2xl font-display font-bold mb-2">
-            SMS Verification
+            Payment Verification
           </h2>
           <p className="text-muted-foreground">
-            We've sent a 6-digit code to your phone number. Please enter it below to confirm your payment.
+            You will receive an SMS with a 6-digit verification code. Please enter it below to confirm your payment.
           </p>
         </div>
 
@@ -104,10 +104,10 @@ const SmsVerification = ({ onProceed, onBack, expectedCode }: SmsVerificationPro
         <div className="bg-secondary/50 rounded-xl p-4 mb-6">
           <div className="flex items-center gap-2 mb-2">
             <Shield className="w-4 h-4 text-primary" />
-            <span className="text-sm font-medium">Verification Code Sent</span>
+            <span className="text-sm font-medium">Awaiting Verification Code</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            A text message with your verification code has been sent to your registered phone number ending in •••789
+            You will receive an SMS with your verification code shortly. Please check your phone and enter the code below.
           </p>
         </div>
 
