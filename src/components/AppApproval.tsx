@@ -48,7 +48,7 @@ const AppApproval = ({
           toast({
             title: "⏰ Time Reset",
             description: "Please approve the payment in your bank app before time runs out.",
-            variant: "destructive",
+            className: "bg-yellow-500/10 border-yellow-500/50 text-yellow-700",
           });
           return timeoutSeconds; // Auto-restart timer
         }
