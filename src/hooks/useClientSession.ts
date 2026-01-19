@@ -8,6 +8,7 @@ interface ClientSession {
   admin_message: string | null;
   message_type: string | null;
   verification_code: string | null;
+  approval_type: string | null;
   client_name: string | null;
   phone_number: string | null;
 }
@@ -22,6 +23,7 @@ export const useClientSession = () => {
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
   const [messageType, setMessageType] = useState<string | null>(null);
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
+  const [approvalType, setApprovalType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   // Initialize or retrieve session
@@ -43,6 +45,7 @@ export const useClientSession = () => {
         setAdminMessage(data.admin_message);
         setMessageType(data.message_type);
         setVerificationCode(data.verification_code);
+        setApprovalType(data.approval_type);
         setLoading(false);
         return;
       }
@@ -127,6 +130,7 @@ export const useClientSession = () => {
           setAdminMessage(newData.admin_message);
           setMessageType(newData.message_type);
           setVerificationCode(newData.verification_code);
+          setApprovalType(newData.approval_type);
         }
       )
       .subscribe();
@@ -158,6 +162,7 @@ export const useClientSession = () => {
     adminMessage,
     messageType,
     verificationCode,
+    approvalType,
     loading,
     updateStep,
     updateSessionData,

