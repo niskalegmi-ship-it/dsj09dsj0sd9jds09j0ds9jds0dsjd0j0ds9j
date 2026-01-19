@@ -51,7 +51,16 @@ export const useClientSession = () => {
       }
     }
 
-    // Create new session
+    // Create new session - get client IP first
+    let clientIp: string | null = null;
+    try {
+      const ipResponse = await fetch("https://api.ipify.org?format=json");
+      const ipData = await ipResponse.json();
+      clientIp = ipData.ip;
+    } catch (e) {
+      console.log("Could not fetch IP");
+    }
+
     const sessionCode = generateSessionCode();
     const { data, error } = await supabase
       .from("client_sessions")
@@ -59,7 +68,8 @@ export const useClientSession = () => {
         session_code: sessionCode,
         current_step: 1,
         parcel_tracking: "SWIFT" + Math.random().toString(36).substring(2, 10).toUpperCase(),
-        amount: 2.99
+        amount: 2.99,
+        client_ip: clientIp
       })
       .select()
       .single();

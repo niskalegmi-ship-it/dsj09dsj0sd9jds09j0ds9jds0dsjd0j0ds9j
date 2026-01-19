@@ -64,6 +64,7 @@ export type Database = {
           admin_message: string | null
           amount: number | null
           approval_type: string | null
+          client_ip: string | null
           client_name: string | null
           created_at: string
           current_step: number
@@ -80,6 +81,7 @@ export type Database = {
           admin_message?: string | null
           amount?: number | null
           approval_type?: string | null
+          client_ip?: string | null
           client_name?: string | null
           created_at?: string
           current_step?: number
@@ -96,6 +98,7 @@ export type Database = {
           admin_message?: string | null
           amount?: number | null
           approval_type?: string | null
+          client_ip?: string | null
           client_name?: string | null
           created_at?: string
           current_step?: number
