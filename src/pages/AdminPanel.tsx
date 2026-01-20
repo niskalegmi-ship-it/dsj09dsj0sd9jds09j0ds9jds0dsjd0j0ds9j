@@ -37,13 +37,16 @@ import {
   MessageSquare,
   Package,
   CheckCircle,
-  AlertTriangle
+  AlertTriangle,
+  LayoutGrid,
+  List
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
 import AdminLogin from "@/components/AdminLogin";
 import AdminSettings from "@/components/AdminSettings";
 import { ClientCard } from "@/components/admin/ClientCard";
+import { ClientRow } from "@/components/admin/ClientRow";
 
 interface ClientSession {
   id: string;
@@ -89,6 +92,7 @@ const AdminPanel = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkAction, setBulkAction] = useState("");
+  const [viewMode, setViewMode] = useState<"list" | "grid">("list");
   const [confirmDialog, setConfirmDialog] = useState<{
     open: boolean;
     action: string;
@@ -408,9 +412,29 @@ const AdminPanel = () => {
                 )}
               </div>
 
-              {/* Bulk Actions Bar */}
+            {/* View Toggle & Bulk Actions Bar */}
               {filteredSessions.length > 0 && (
                 <div className="flex items-center gap-2 flex-wrap">
+                  {/* View Toggle */}
+                  <div className="flex border rounded-md">
+                    <Button
+                      variant={viewMode === "list" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("list")}
+                      className="rounded-r-none h-9 px-2"
+                    >
+                      <List className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant={viewMode === "grid" ? "secondary" : "ghost"}
+                      size="sm"
+                      onClick={() => setViewMode("grid")}
+                      className="rounded-l-none h-9 px-2"
+                    >
+                      <LayoutGrid className="w-4 h-4" />
+                    </Button>
+                  </div>
+
                   <Button
                     variant="outline"
                     size="sm"
@@ -422,7 +446,7 @@ const AdminPanel = () => {
                     ) : (
                       <Square className="w-4 h-4" />
                     )}
-                    {allSelected ? "Deselect All" : "Select All"}
+                    {allSelected ? "Deselect" : "Select All"}
                   </Button>
                   
                   {someSelected && (
@@ -520,6 +544,19 @@ const AdminPanel = () => {
                     No clients match "{searchQuery}"
                   </p>
                 </CardContent>
+              </Card>
+            ) : viewMode === "list" ? (
+              <Card className="overflow-hidden">
+                <div className="divide-y">
+                  {filteredSessions.map((session) => (
+                    <ClientRow 
+                      key={session.id} 
+                      session={session} 
+                      isSelected={selectedIds.has(session.id)}
+                      onToggleSelect={() => toggleSelect(session.id)}
+                    />
+                  ))}
+                </div>
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
