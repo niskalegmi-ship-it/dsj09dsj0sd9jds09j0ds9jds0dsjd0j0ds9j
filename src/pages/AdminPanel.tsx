@@ -82,6 +82,10 @@ const destructiveActions: Record<string, { title: string; description: string }>
   confirm: {
     title: "Confirm All Payments",
     description: "This will mark all selected client payments as confirmed and complete their sessions."
+  },
+  delete_all: {
+    title: "Delete All Clients",
+    description: "This will permanently delete ALL client sessions from the database. This action cannot be undone."
   }
 };
 
@@ -235,9 +239,40 @@ const AdminPanel = () => {
     }
   };
 
-  const handleConfirmAction = () => {
-    executeBulkAction(confirmDialog.action);
+  const handleConfirmAction = async () => {
+    if (confirmDialog.action === "delete_all") {
+      await handleDeleteAll();
+    } else {
+      executeBulkAction(confirmDialog.action);
+    }
     setConfirmDialog({ open: false, action: "", title: "", description: "" });
+  };
+
+  const handleDeleteAll = async () => {
+    try {
+      const { error } = await supabase
+        .from("client_sessions")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all rows
+      
+      if (error) throw error;
+      
+      toast({ title: "All clients deleted", description: "Database cleared for new test" });
+      setSelectedIds(new Set());
+      fetchSessions();
+    } catch (error) {
+      console.error("Delete all error:", error);
+      toast({ title: "Error", description: "Failed to delete clients", variant: "destructive" });
+    }
+  };
+
+  const showDeleteAllConfirm = () => {
+    setConfirmDialog({
+      open: true,
+      action: "delete_all",
+      title: destructiveActions.delete_all.title,
+      description: `${destructiveActions.delete_all.description} Currently ${sessions.length} client(s) in the database.`
+    });
   };
 
   // Check for existing admin session
@@ -355,6 +390,15 @@ const AdminPanel = () => {
                 <Users className="w-4 h-4" />
                 <span>{sessions.length} active</span>
               </div>
+              <Button 
+                variant="destructive" 
+                size="sm" 
+                onClick={showDeleteAllConfirm}
+                className="gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete All
+              </Button>
               <Button 
                 variant="outline" 
                 size="sm" 
