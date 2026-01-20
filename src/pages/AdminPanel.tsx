@@ -65,6 +65,7 @@ interface ClientSession {
   origin: string | null;
   destination: string | null;
   estimated_delivery: string | null;
+  weight: string | null;
   created_at: string;
   updated_at: string;
 }

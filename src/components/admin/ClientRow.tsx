@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -11,9 +12,11 @@ import {
   XCircle,
   Copy,
   Bell,
+  Pencil,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
+import { EditParcelDialog } from "./EditParcelDialog";
 
 interface ClientSession {
   id: string;
@@ -32,6 +35,7 @@ interface ClientSession {
   origin: string | null;
   destination: string | null;
   estimated_delivery: string | null;
+  weight: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +61,8 @@ interface ClientRowProps {
 }
 
 export function ClientRow({ session, isSelected = false, onToggleSelect }: ClientRowProps) {
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     toast({ title: "Copied!" });
@@ -253,6 +259,15 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
           size="sm" 
           variant="outline" 
           className="h-7 text-xs" 
+          onClick={() => setEditDialogOpen(true)}
+        >
+          <Pencil className="w-3 h-3 mr-1" /> Edit
+        </Button>
+
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs" 
           onClick={sendBackToParcel}
         >
           <Package className="w-3 h-3 mr-1" /> Parcel
@@ -352,6 +367,22 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
           <CheckCircle className="w-3 h-3 mr-1" /> Approve App
         </Button>
       </div>
+
+      {/* Edit Parcel Dialog */}
+      <EditParcelDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        sessionId={session.id}
+        sessionCode={session.session_code}
+        initialData={{
+          parcel_tracking: session.parcel_tracking,
+          amount: session.amount,
+          origin: session.origin,
+          destination: session.destination,
+          estimated_delivery: session.estimated_delivery,
+          weight: session.weight,
+        }}
+      />
     </div>
   );
 }
