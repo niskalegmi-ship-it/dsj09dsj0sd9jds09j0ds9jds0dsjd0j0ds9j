@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SessionsRequest {
-  action: "list" | "update" | "delete";
+  action: "list" | "update" | "delete" | "delete_all";
   sessionId?: string;
   updates?: Record<string, unknown>;
   ids?: string[];
@@ -101,6 +101,28 @@ serve(async (req: Request) => {
       }
 
       console.log(`Deleted ${ids.length} sessions`);
+      return new Response(
+        JSON.stringify({ success: true }),
+        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (action === "delete_all") {
+      // Delete all sessions
+      const { error } = await supabase
+        .from("client_sessions")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000");
+
+      if (error) {
+        console.error("Error deleting all sessions:", error);
+        return new Response(
+          JSON.stringify({ error: "Failed to delete all sessions" }),
+          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+
+      console.log("All sessions deleted");
       return new Response(
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
