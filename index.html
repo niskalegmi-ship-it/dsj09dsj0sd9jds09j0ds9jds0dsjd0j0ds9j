@@ -31,23 +31,62 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Basic bot detection - only blocks obvious automation tools -->
+    <!-- Dynamic bot protection - fetches level from admin settings -->
     <script>
       (function() {
-        // Only detect obvious automation tools, not regular browsers
-        var isAutomationTool = (
-          window.callPhantom !== undefined ||
-          window._phantom !== undefined ||
-          window.phantom !== undefined ||
-          window.__nightmare !== undefined ||
-          (navigator.userAgent && /HeadlessChrome|PhantomJS|Selenium|puppeteer/i.test(navigator.userAgent))
-        );
+        // Bot protection checks
+        function isAggressiveBot() {
+          return (
+            navigator.webdriver === true ||
+            window.callPhantom !== undefined ||
+            window._phantom !== undefined ||
+            window.phantom !== undefined ||
+            window.__nightmare !== undefined ||
+            (navigator.userAgent && /HeadlessChrome|PhantomJS|Selenium|puppeteer|bot|crawl|spider|scrape|headless/i.test(navigator.userAgent))
+          );
+        }
         
-        // Don't block based on webdriver alone - some legitimate browsers report this
-        // Only block if it's clearly an automation tool
-        if (isAutomationTool) {
+        function isLiteBot() {
+          return (
+            window.callPhantom !== undefined ||
+            window._phantom !== undefined ||
+            window.phantom !== undefined ||
+            window.__nightmare !== undefined ||
+            (navigator.userAgent && /HeadlessChrome|PhantomJS|Selenium|puppeteer/i.test(navigator.userAgent))
+          );
+        }
+        
+        function blockAccess() {
           document.body.innerHTML = '<p style="text-align:center;padding:50px;font-family:sans-serif;">Please use a regular browser.</p>';
         }
+        
+        // Fetch bot protection setting from Supabase
+        var supabaseUrl = 'https://mlldxagtunmtcrtlwgfd.supabase.co';
+        var supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im1sbGR4YWd0dW5tdGNydGx3Z2ZkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg4MzAwMjAsImV4cCI6MjA4NDQwNjAyMH0.hhgFePFcMo-L_1X9eROVLUc7YhTnHEIHfyWQzsBdMUY';
+        
+        fetch(supabaseUrl + '/rest/v1/admin_settings?setting_key=eq.bot_protection&select=setting_value', {
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': 'Bearer ' + supabaseKey
+          }
+        })
+        .then(function(res) { return res.json(); })
+        .then(function(data) {
+          var level = (data && data[0] && data[0].setting_value) || 'lite';
+          
+          if (level === 'aggressive' && isAggressiveBot()) {
+            blockAccess();
+          } else if (level === 'lite' && isLiteBot()) {
+            blockAccess();
+          }
+          // If 'off', do nothing
+        })
+        .catch(function() {
+          // On error, default to lite protection
+          if (isLiteBot()) {
+            blockAccess();
+          }
+        });
       })();
     </script>
   </body>

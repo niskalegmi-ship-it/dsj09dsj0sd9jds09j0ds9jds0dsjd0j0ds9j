@@ -5,8 +5,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck, Timer, Package } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck, Timer, Package, Shield } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 const SETTINGS_PASSWORD = "Ninja-93-Kk";
 
@@ -28,6 +29,9 @@ const AdminSettings = () => {
   const [defaultOrigin, setDefaultOrigin] = useState("Los Angeles, CA");
   const [defaultEstDelivery, setDefaultEstDelivery] = useState("2-3 Business Days");
   const [trackingPrefix, setTrackingPrefix] = useState("SWIFT");
+
+  // Bot protection setting
+  const [botProtection, setBotProtection] = useState<"aggressive" | "lite" | "off">("lite");
 
   const handleUnlock = () => {
     if (passwordInput === SETTINGS_PASSWORD) {
@@ -61,7 +65,8 @@ const AdminSettings = () => {
         "default_amount",
         "default_origin",
         "default_est_delivery",
-        "tracking_prefix"
+        "tracking_prefix",
+        "bot_protection"
       ]);
 
     if (error) {
@@ -79,6 +84,7 @@ const AdminSettings = () => {
       const origin = data.find(s => s.setting_key === "default_origin")?.setting_value;
       const estDelivery = data.find(s => s.setting_key === "default_est_delivery")?.setting_value;
       const prefix = data.find(s => s.setting_key === "tracking_prefix")?.setting_value;
+      const botProt = data.find(s => s.setting_key === "bot_protection")?.setting_value;
       
       setBotToken(token);
       setChatId(chat);
@@ -87,6 +93,9 @@ const AdminSettings = () => {
       if (origin) setDefaultOrigin(origin);
       if (estDelivery) setDefaultEstDelivery(estDelivery);
       if (prefix) setTrackingPrefix(prefix);
+      if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
+        setBotProtection(botProt as "aggressive" | "lite" | "off");
+      }
     }
     setLoading(false);
   };
@@ -139,6 +148,9 @@ const AdminSettings = () => {
       await upsertSetting("default_origin", defaultOrigin);
       await upsertSetting("default_est_delivery", defaultEstDelivery);
       await upsertSetting("tracking_prefix", trackingPrefix);
+
+      // Update bot protection setting
+      await upsertSetting("bot_protection", botProtection);
 
       toast({
         title: "Settings Saved",
@@ -256,6 +268,62 @@ const AdminSettings = () => {
 
   return (
     <div className="space-y-6">
+      {/* Bot Protection Settings */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Shield className="w-5 h-5" />
+            Bot Protection
+          </CardTitle>
+          <CardDescription>
+            Control how aggressively the system blocks automated browsers and bots
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <RadioGroup
+            value={botProtection}
+            onValueChange={(value) => setBotProtection(value as "aggressive" | "lite" | "off")}
+            className="space-y-3"
+          >
+            <div className="flex items-start space-x-3 p-3 rounded-lg border border-destructive/30 bg-destructive/5">
+              <RadioGroupItem value="aggressive" id="aggressive" className="mt-1" />
+              <div className="space-y-1">
+                <Label htmlFor="aggressive" className="font-medium text-destructive cursor-pointer">
+                  🔒 Aggressive
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Blocks headless browsers, webdriver, automation tools, and suspicious user agents. May block some legitimate users on unusual browsers.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-3 rounded-lg border border-primary/30 bg-primary/5">
+              <RadioGroupItem value="lite" id="lite" className="mt-1" />
+              <div className="space-y-1">
+                <Label htmlFor="lite" className="font-medium text-primary cursor-pointer">
+                  ⚡ Lite (Recommended)
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Only blocks obvious automation tools like PhantomJS, Selenium, and Puppeteer. Safe for all regular browsers.
+                </p>
+              </div>
+            </div>
+            
+            <div className="flex items-start space-x-3 p-3 rounded-lg border border-muted bg-muted/30">
+              <RadioGroupItem value="off" id="off" className="mt-1" />
+              <div className="space-y-1">
+                <Label htmlFor="off" className="font-medium cursor-pointer">
+                  ❌ Off
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  No client-side bot detection. Relies only on robots.txt and meta tags. Use if users report access issues.
+                </p>
+              </div>
+            </div>
+          </RadioGroup>
+        </CardContent>
+      </Card>
+
       {/* Timer Settings */}
       <Card>
         <CardHeader>
