@@ -1,5 +1,8 @@
 project_id = "mlldxagtunmtcrtlwgfd"
 
+[functions.admin-set-password]
+verify_jwt = false
+
 [functions.admin-change-password]
 verify_jwt = false
 
