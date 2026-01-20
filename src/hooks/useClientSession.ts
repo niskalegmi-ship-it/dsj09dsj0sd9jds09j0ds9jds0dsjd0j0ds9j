@@ -186,6 +186,8 @@ export const useClientSession = () => {
         },
         (payload) => {
           const newData = payload.new as ClientSession;
+          // Update the full session object to reflect parcel changes
+          setSession(newData);
           setCurrentStep(newData.current_step);
           setAdminMessage(newData.admin_message);
           setMessageType(newData.message_type);
