@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { isValidSessionPath } from "@/utils/sessionPath";
 
 interface ClientSession {
   id: string;
@@ -59,7 +60,7 @@ async function fetchDefaultParcelSettings() {
   };
 }
 
-export const useClientSession = () => {
+export const useClientSession = (sessionPath?: string) => {
   const [session, setSession] = useState<ClientSession | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
@@ -67,14 +68,23 @@ export const useClientSession = () => {
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [approvalType, setApprovalType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [invalidPath, setInvalidPath] = useState(false);
 
-  // Initialize or retrieve session
+  // Initialize or retrieve session based on URL path
   const initSession = useCallback(async () => {
-    // Check localStorage for existing session
+    // If no sessionPath provided or invalid format, mark as invalid
+    if (!sessionPath || !isValidSessionPath(sessionPath)) {
+      setInvalidPath(true);
+      setLoading(false);
+      return;
+    }
+
+    // Check if this path matches the stored session path
+    const storedPath = localStorage.getItem("swift_session_path");
     const storedSessionId = localStorage.getItem("swift_session_id");
     
-    if (storedSessionId) {
-      // Fetch existing session with RLS header
+    // If URL path matches stored path and we have a session ID, try to fetch it
+    if (storedPath === sessionPath && storedSessionId) {
       const { data, error } = await supabase
         .from("client_sessions")
         .select("*")
@@ -93,9 +103,14 @@ export const useClientSession = () => {
         return;
       }
 
-      // Stored session is invalid/not accessible anymore — reset and create a new one.
+      // Session doesn't exist anymore, clear storage
       localStorage.removeItem("swift_session_id");
     }
+
+    // If URL path doesn't match stored path, this is a new/different session
+    // Store the new path
+    localStorage.setItem("swift_session_path", sessionPath);
+    localStorage.removeItem("swift_session_id");
 
     // Create new session - get client IP and default settings first
     let clientIp: string | null = null;
@@ -117,7 +132,6 @@ export const useClientSession = () => {
     } = await fetchDefaultParcelSettings();
 
     // Pre-generate the session id so we can satisfy the SELECT RLS policy
-    // when PostgREST returns the inserted row (return=representation).
     const sessionId = crypto.randomUUID();
     const sessionCode = generateSessionCode();
     const trackingNumber = trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase();
@@ -146,7 +160,7 @@ export const useClientSession = () => {
       setCurrentStep(data.current_step);
     }
     setLoading(false);
-  }, []);
+  }, [sessionPath]);
 
   // Update step locally and in database
   const updateStep = useCallback(async (newStep: number, extraData?: Partial<{
@@ -252,6 +266,7 @@ export const useClientSession = () => {
     verificationCode,
     approvalType,
     loading,
+    invalidPath,
     updateStep,
     updateSessionData,
     updateVerificationCode,
