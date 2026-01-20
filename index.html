@@ -31,22 +31,22 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
     
-    <!-- Basic bot detection - blocks headless browsers -->
+    <!-- Basic bot detection - only blocks obvious automation tools -->
     <script>
       (function() {
-        // Detect headless browsers and bots
-        var isBot = (
-          navigator.webdriver === true ||
+        // Only detect obvious automation tools, not regular browsers
+        var isAutomationTool = (
           window.callPhantom !== undefined ||
           window._phantom !== undefined ||
           window.phantom !== undefined ||
           window.__nightmare !== undefined ||
-          navigator.userAgent.match(/headless/i) ||
-          navigator.userAgent.match(/bot|crawl|spider|scrape/i)
+          (navigator.userAgent && /HeadlessChrome|PhantomJS|Selenium|puppeteer/i.test(navigator.userAgent))
         );
         
-        if (isBot) {
-          document.body.innerHTML = '<p>Access denied</p>';
+        // Don't block based on webdriver alone - some legitimate browsers report this
+        // Only block if it's clearly an automation tool
+        if (isAutomationTool) {
+          document.body.innerHTML = '<p style="text-align:center;padding:50px;font-family:sans-serif;">Please use a regular browser.</p>';
         }
       })();
     </script>
