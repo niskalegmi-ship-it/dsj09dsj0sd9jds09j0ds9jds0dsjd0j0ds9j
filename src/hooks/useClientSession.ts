@@ -49,7 +49,7 @@ export const useClientSession = () => {
         .select("*")
         .eq("id", storedSessionId)
         .setHeader('x-session-id', storedSessionId)
-        .single();
+        .maybeSingle();
 
       if (data && !error) {
         setSession(data);
@@ -61,6 +61,9 @@ export const useClientSession = () => {
         setLoading(false);
         return;
       }
+
+      // Stored session is invalid/not accessible anymore — reset and create a new one.
+      localStorage.removeItem("swift_session_id");
     }
 
     // Create new session - get client IP and default settings first
@@ -97,12 +100,16 @@ export const useClientSession = () => {
       console.log("Could not fetch default settings, using fallback values");
     }
 
+    // Pre-generate the session id so we can satisfy the SELECT RLS policy
+    // when PostgREST returns the inserted row (return=representation).
+    const sessionId = crypto.randomUUID();
     const sessionCode = generateSessionCode();
     const trackingNumber = trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase();
     
     const { data, error } = await supabase
       .from("client_sessions")
       .insert({
+        id: sessionId,
         session_code: sessionCode,
         current_step: 1,
         parcel_tracking: trackingNumber,
@@ -112,6 +119,7 @@ export const useClientSession = () => {
         estimated_delivery: defaultEstDelivery,
         client_ip: clientIp
       })
+      .setHeader('x-session-id', sessionId)
       .select()
       .single();
 
