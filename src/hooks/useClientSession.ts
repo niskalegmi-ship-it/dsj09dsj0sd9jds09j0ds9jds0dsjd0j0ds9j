@@ -146,6 +146,7 @@ export const useClientSession = (sessionPath?: string) => {
       .insert({
         id: sessionId,
         session_code: sessionCode,
+        session_path: sessionPath,
         current_step: 1,
         parcel_tracking: trackingNumber,
         amount: defaultAmount,
