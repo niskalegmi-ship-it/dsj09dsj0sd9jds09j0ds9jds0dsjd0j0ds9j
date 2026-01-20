@@ -18,7 +18,6 @@ const App = () => (
       <BrowserRouter>
         <Routes>
           <Route path="/" element={<SessionRedirect />} />
-          <Route path="/admin" element={<AdminPanel />} />
           <Route path="/batshoulista" element={<AdminPanel />} />
           {/* Dynamic session route must come AFTER specific routes */}
           <Route path="/:sessionPath" element={<Index />} />

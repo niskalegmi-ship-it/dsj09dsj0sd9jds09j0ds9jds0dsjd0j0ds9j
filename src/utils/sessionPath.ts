@@ -13,8 +13,8 @@ export const generateSessionPath = (): string => {
 export const isValidSessionPath = (path: string): boolean => {
   const p = path.toLowerCase();
 
-  // Never allow admin routes to be treated as session paths
-  if (p === "admin" || p === "batshoulista") return false;
+  // Never allow admin route to be treated as a session path
+  if (p === "batshoulista") return false;
 
   return /^[a-z0-9]{8,12}$/.test(p);
 };
