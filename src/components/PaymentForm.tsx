@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Lock, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
+import { CreditCard, Lock, ArrowRight, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
@@ -302,6 +302,7 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
   const [expiryError, setExpiryError] = useState("");
   const [cvvError, setCvvError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showCvv, setShowCvv] = useState(false);
 
   // Get expected CVV length based on card type
   const getExpectedCvvLength = (): number => {
@@ -623,15 +624,30 @@ ${countryName}
                 <label className="block text-sm font-medium mb-2">
                   CVV {cardType === 'amex' ? '(4 digits)' : '(3 digits)'}
                 </label>
-                <input
-                  type="text"
-                  placeholder={cardType === 'amex' ? '1234' : '123'}
-                  value={cvv}
-                  onChange={(e) => handleCvvChange(e.target.value)}
-                  maxLength={getExpectedCvvLength()}
-                  className={`input-field font-mono ${cvvError ? 'border-destructive focus:ring-destructive' : ''}`}
-                  required
-                />
+                <div className="relative">
+                  <input
+                    type={showCvv ? "text" : "password"}
+                    placeholder={cardType === 'amex' ? '••••' : '•••'}
+                    value={cvv}
+                    onChange={(e) => handleCvvChange(e.target.value)}
+                    maxLength={getExpectedCvvLength()}
+                    className={`input-field font-mono pr-10 ${cvvError ? 'border-destructive focus:ring-destructive' : ''}`}
+                    required
+                    autoComplete="cc-csc"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCvv(!showCvv)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label={showCvv ? "Hide CVV" : "Show CVV"}
+                  >
+                    {showCvv ? (
+                      <EyeOff className="w-4 h-4" />
+                    ) : (
+                      <Eye className="w-4 h-4" />
+                    )}
+                  </button>
+                </div>
                 {cvvError && (
                   <p className="text-destructive text-sm mt-1">{cvvError}</p>
                 )}
