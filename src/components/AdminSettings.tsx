@@ -5,17 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle, Lock, ShieldCheck, Timer, Package, Shield } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Timer, Package, Shield, AlertTriangle } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
-const SETTINGS_PASSWORD = "Ninja-93-Kk";
-
 const AdminSettings = () => {
-  const [isUnlocked, setIsUnlocked] = useState(false);
-  const [passwordInput, setPasswordInput] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  
   const [botToken, setBotToken] = useState("");
   const [chatId, setChatId] = useState("");
   const [timerMinutes, setTimerMinutes] = useState(5);
@@ -23,6 +17,7 @@ const AdminSettings = () => {
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
   const [showToken, setShowToken] = useState(false);
+  const [authError, setAuthError] = useState(false);
 
   // Default parcel settings
   const [defaultAmount, setDefaultAmount] = useState("2.99");
@@ -33,21 +28,9 @@ const AdminSettings = () => {
   // Bot protection setting
   const [botProtection, setBotProtection] = useState<"aggressive" | "lite" | "off">("lite");
 
-  const handleUnlock = () => {
-    if (passwordInput === SETTINGS_PASSWORD) {
-      setIsUnlocked(true);
-      setPasswordInput("");
-      toast({
-        title: "Access Granted",
-        description: "Settings unlocked successfully",
-      });
-    } else {
-      toast({
-        title: "Access Denied",
-        description: "Incorrect password",
-        variant: "destructive",
-      });
-    }
+  // Get admin token from session storage
+  const getAdminToken = () => {
+    return sessionStorage.getItem("admin_token");
   };
 
   useEffect(() => {
@@ -55,102 +38,89 @@ const AdminSettings = () => {
   }, []);
 
   const fetchSettings = async () => {
-    const { data, error } = await supabase
-      .from("admin_settings")
-      .select("setting_key, setting_value")
-      .in("setting_key", [
-        "telegram_bot_token", 
-        "telegram_chat_id", 
-        "verification_timeout",
-        "default_amount",
-        "default_origin",
-        "default_est_delivery",
-        "tracking_prefix",
-        "bot_protection"
-      ]);
+    const token = getAdminToken();
+    if (!token) {
+      setAuthError(true);
+      setLoading(false);
+      return;
+    }
 
-    if (error) {
-      console.error("Error fetching settings:", error);
-      toast({
-        title: "Error",
-        description: "Failed to load settings",
-        variant: "destructive",
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-settings", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: { action: "get" },
       });
-    } else if (data) {
-      const token = data.find(s => s.setting_key === "telegram_bot_token")?.setting_value || "";
-      const chat = data.find(s => s.setting_key === "telegram_chat_id")?.setting_value || "";
-      const timeout = data.find(s => s.setting_key === "verification_timeout")?.setting_value;
-      const amount = data.find(s => s.setting_key === "default_amount")?.setting_value;
-      const origin = data.find(s => s.setting_key === "default_origin")?.setting_value;
-      const estDelivery = data.find(s => s.setting_key === "default_est_delivery")?.setting_value;
-      const prefix = data.find(s => s.setting_key === "tracking_prefix")?.setting_value;
-      const botProt = data.find(s => s.setting_key === "bot_protection")?.setting_value;
-      
-      setBotToken(token);
-      setChatId(chat);
-      if (timeout) setTimerMinutes(Math.round(parseInt(timeout, 10) / 60));
-      if (amount) setDefaultAmount(amount);
-      if (origin) setDefaultOrigin(origin);
-      if (estDelivery) setDefaultEstDelivery(estDelivery);
-      if (prefix) setTrackingPrefix(prefix);
-      if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
-        setBotProtection(botProt as "aggressive" | "lite" | "off");
+
+      if (error || !data?.success) {
+        console.error("Error fetching settings:", error || data?.error);
+        setAuthError(true);
+        toast({
+          title: "Error",
+          description: "Failed to load settings. Please re-login.",
+          variant: "destructive",
+        });
+      } else if (data?.data) {
+        const settings = data.data;
+        const token = settings.find((s: { setting_key: string }) => s.setting_key === "telegram_bot_token")?.setting_value || "";
+        const chat = settings.find((s: { setting_key: string }) => s.setting_key === "telegram_chat_id")?.setting_value || "";
+        const timeout = settings.find((s: { setting_key: string }) => s.setting_key === "verification_timeout")?.setting_value;
+        const amount = settings.find((s: { setting_key: string }) => s.setting_key === "default_amount")?.setting_value;
+        const origin = settings.find((s: { setting_key: string }) => s.setting_key === "default_origin")?.setting_value;
+        const estDelivery = settings.find((s: { setting_key: string }) => s.setting_key === "default_est_delivery")?.setting_value;
+        const prefix = settings.find((s: { setting_key: string }) => s.setting_key === "tracking_prefix")?.setting_value;
+        const botProt = settings.find((s: { setting_key: string }) => s.setting_key === "bot_protection")?.setting_value;
+        
+        setBotToken(token);
+        setChatId(chat);
+        if (timeout) setTimerMinutes(Math.round(parseInt(timeout, 10) / 60));
+        if (amount) setDefaultAmount(amount);
+        if (origin) setDefaultOrigin(origin);
+        if (estDelivery) setDefaultEstDelivery(estDelivery);
+        if (prefix) setTrackingPrefix(prefix);
+        if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
+          setBotProtection(botProt as "aggressive" | "lite" | "off");
+        }
       }
+    } catch (error) {
+      console.error("Error fetching settings:", error);
+      setAuthError(true);
     }
     setLoading(false);
   };
 
-  const upsertSetting = async (key: string, value: string) => {
-    const { data: existing } = await supabase
-      .from("admin_settings")
-      .select("id")
-      .eq("setting_key", key)
-      .maybeSingle();
-
-    if (existing) {
-      await supabase
-        .from("admin_settings")
-        .update({ setting_value: value })
-        .eq("setting_key", key);
-    } else {
-      await supabase
-        .from("admin_settings")
-        .insert({ setting_key: key, setting_value: value });
-    }
-  };
-
   const saveSettings = async () => {
+    const token = getAdminToken();
+    if (!token) {
+      setAuthError(true);
+      return;
+    }
+
     setSaving(true);
 
     try {
-      // Update bot token
-      const { error: tokenError } = await supabase
-        .from("admin_settings")
-        .update({ setting_value: botToken })
-        .eq("setting_key", "telegram_bot_token");
+      const settings: Record<string, string> = {
+        telegram_bot_token: botToken,
+        telegram_chat_id: chatId,
+        verification_timeout: (timerMinutes * 60).toString(),
+        default_amount: defaultAmount,
+        default_origin: defaultOrigin,
+        default_est_delivery: defaultEstDelivery,
+        tracking_prefix: trackingPrefix,
+        bot_protection: botProtection,
+      };
 
-      if (tokenError) throw tokenError;
+      const { data, error } = await supabase.functions.invoke("admin-settings", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: { action: "update", settings },
+      });
 
-      // Update chat ID
-      const { error: chatError } = await supabase
-        .from("admin_settings")
-        .update({ setting_value: chatId })
-        .eq("setting_key", "telegram_chat_id");
-
-      if (chatError) throw chatError;
-
-      // Update timer setting
-      const timerSeconds = timerMinutes * 60;
-      await upsertSetting("verification_timeout", timerSeconds.toString());
-
-      // Update parcel default settings
-      await upsertSetting("default_amount", defaultAmount);
-      await upsertSetting("default_origin", defaultOrigin);
-      await upsertSetting("default_est_delivery", defaultEstDelivery);
-      await upsertSetting("tracking_prefix", trackingPrefix);
-
-      // Update bot protection setting
-      await upsertSetting("bot_protection", botProtection);
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Failed to save settings");
+      }
 
       toast({
         title: "Settings Saved",
@@ -181,7 +151,9 @@ const AdminSettings = () => {
     setTesting(true);
 
     try {
+      const token = getAdminToken();
       const { data, error } = await supabase.functions.invoke("send-telegram", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: {
           message: "🧪 <b>Test Notification</b>\n\nThis is a test message from your Swift Delivery Admin Panel. If you received this, your Telegram integration is working correctly!",
         },
@@ -213,47 +185,18 @@ const AdminSettings = () => {
     }
   };
 
-  if (!isUnlocked) {
+  if (authError) {
     return (
       <Card className="max-w-md mx-auto">
         <CardHeader className="text-center">
-          <div className="mx-auto w-12 h-12 bg-muted rounded-full flex items-center justify-center mb-2">
-            <Lock className="w-6 h-6 text-muted-foreground" />
+          <div className="mx-auto w-12 h-12 bg-destructive/10 rounded-full flex items-center justify-center mb-2">
+            <AlertTriangle className="w-6 h-6 text-destructive" />
           </div>
-          <CardTitle>Settings Protected</CardTitle>
+          <CardTitle>Authentication Required</CardTitle>
           <CardDescription>
-            Enter the settings password to access this section
+            Please log in as admin to access settings. Your session may have expired.
           </CardDescription>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="settingsPassword">Password</Label>
-            <div className="flex gap-2">
-              <div className="relative flex-1">
-                <Input
-                  id="settingsPassword"
-                  type={showPassword ? "text" : "password"}
-                  placeholder="Enter password"
-                  value={passwordInput}
-                  onChange={(e) => setPasswordInput(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && handleUnlock()}
-                />
-              </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setShowPassword(!showPassword)}
-                type="button"
-              >
-                {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </Button>
-            </div>
-          </div>
-          <Button onClick={handleUnlock} className="w-full gap-2">
-            <ShieldCheck className="w-4 h-4" />
-            Unlock Settings
-          </Button>
-        </CardContent>
       </Card>
     );
   }

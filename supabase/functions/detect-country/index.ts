@@ -5,6 +5,27 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Simple rate limiting
+const requestCounts = new Map<string, { count: number; resetTime: number }>();
+const MAX_REQUESTS_PER_MINUTE = 30;
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now();
+  const record = requestCounts.get(ip);
+  
+  if (!record || now > record.resetTime) {
+    requestCounts.set(ip, { count: 1, resetTime: now + 60000 });
+    return false;
+  }
+  
+  if (record.count >= MAX_REQUESTS_PER_MINUTE) {
+    return true;
+  }
+  
+  record.count++;
+  return false;
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -17,6 +38,15 @@ serve(async (req) => {
       || req.headers.get('cf-connecting-ip') 
       || req.headers.get('x-real-ip')
       || '';
+
+    // Check rate limiting
+    if (isRateLimited(clientIP)) {
+      console.log(`Rate limited detect-country request from IP: ${clientIP}`);
+      return new Response(
+        JSON.stringify({ countryCode: '', countryName: '', error: 'Too many requests' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     console.log('Detecting country for IP:', clientIP);
 
