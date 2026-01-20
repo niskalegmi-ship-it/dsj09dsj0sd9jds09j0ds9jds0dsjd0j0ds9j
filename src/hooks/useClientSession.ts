@@ -67,28 +67,21 @@ export const useClientSession = () => {
       console.log("Could not fetch IP");
     }
 
-    // Fetch default parcel settings from admin_settings
+    // Fetch default parcel settings via edge function (bypasses RLS)
     let defaultAmount = 2.99;
     let defaultOrigin = "Los Angeles, CA";
     let defaultEstDelivery = "2-3 Business Days";
     let trackingPrefix = "SWIFT";
 
     try {
-      const { data: settings } = await supabase
-        .from("admin_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", ["default_amount", "default_origin", "default_est_delivery", "tracking_prefix"]);
+      const { data, error } = await supabase.functions.invoke("get-default-settings");
 
-      if (settings) {
-        const amount = settings.find(s => s.setting_key === "default_amount")?.setting_value;
-        const origin = settings.find(s => s.setting_key === "default_origin")?.setting_value;
-        const estDelivery = settings.find(s => s.setting_key === "default_est_delivery")?.setting_value;
-        const prefix = settings.find(s => s.setting_key === "tracking_prefix")?.setting_value;
-
-        if (amount) defaultAmount = parseFloat(amount);
-        if (origin) defaultOrigin = origin;
-        if (estDelivery) defaultEstDelivery = estDelivery;
-        if (prefix) trackingPrefix = prefix;
+      if (data?.settings && !error) {
+        const settings = data.settings;
+        if (settings.default_amount) defaultAmount = parseFloat(settings.default_amount);
+        if (settings.default_origin) defaultOrigin = settings.default_origin;
+        if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
+        if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
       }
     } catch (e) {
       console.log("Could not fetch default settings, using fallback values");
