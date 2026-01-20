@@ -11,6 +11,11 @@ interface ClientSession {
   approval_type: string | null;
   client_name: string | null;
   phone_number: string | null;
+  parcel_tracking: string | null;
+  origin: string | null;
+  destination: string | null;
+  estimated_delivery: string | null;
+  amount: number | null;
 }
 
 const generateSessionCode = () => {
