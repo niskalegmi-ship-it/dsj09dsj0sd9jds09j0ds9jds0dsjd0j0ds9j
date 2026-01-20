@@ -91,6 +91,7 @@ const destructiveActions: Record<string, { title: string; description: string }>
 
 const AdminPanel = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
   const [sessions, setSessions] = useState<ClientSession[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -103,6 +104,27 @@ const AdminPanel = () => {
     title: string;
     description: string;
   }>({ open: false, action: "", title: "", description: "" });
+
+  // Validate session token
+  const validateSession = (): boolean => {
+    const token = sessionStorage.getItem("admin_token");
+    const expiresAt = sessionStorage.getItem("admin_token_expires");
+    
+    if (!token || !expiresAt) {
+      return false;
+    }
+    
+    // Check if token has expired
+    if (new Date(expiresAt) < new Date()) {
+      // Token expired, clear session
+      sessionStorage.removeItem("admin_token");
+      sessionStorage.removeItem("admin_token_expires");
+      sessionStorage.removeItem("admin_username");
+      return false;
+    }
+    
+    return true;
+  };
 
   // Filter sessions based on search query
   const filteredSessions = useMemo(() => {
@@ -275,17 +297,28 @@ const AdminPanel = () => {
     });
   };
 
-  // Check for existing admin session
+  // Check for existing admin session with proper token validation
   useEffect(() => {
-    const adminAuth = sessionStorage.getItem("admin_authenticated");
-    if (adminAuth === "true") {
+    if (validateSession()) {
+      const token = sessionStorage.getItem("admin_token");
+      setAdminToken(token);
       setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+      setAdminToken(null);
     }
   }, []);
 
+  const handleLogin = (token: string) => {
+    setAdminToken(token);
+    setIsAuthenticated(true);
+  };
+
   const handleLogout = () => {
-    sessionStorage.removeItem("admin_authenticated");
+    sessionStorage.removeItem("admin_token");
+    sessionStorage.removeItem("admin_token_expires");
     sessionStorage.removeItem("admin_username");
+    setAdminToken(null);
     setIsAuthenticated(false);
     toast({
       title: "Logged out",
@@ -340,7 +373,7 @@ const AdminPanel = () => {
   }, [isAuthenticated]);
 
   if (!isAuthenticated) {
-    return <AdminLogin onLogin={() => setIsAuthenticated(true)} />;
+    return <AdminLogin onLogin={handleLogin} />;
   }
 
   return (
