@@ -380,7 +380,7 @@ const AdminPanel = () => {
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-background">
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, open: false })}>
         <AlertDialogContent>
@@ -405,7 +405,6 @@ const AdminPanel = () => {
         </AlertDialogContent>
       </AlertDialog>
 
-      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-secondary text-secondary-foreground py-4 shadow-lg">
         <div className="container mx-auto px-4">
@@ -655,8 +654,7 @@ const AdminPanel = () => {
           </TabsContent>
         </Tabs>
       </main>
-      </div>
-    </>
+    </div>
   );
 };
 
