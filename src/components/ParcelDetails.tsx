@@ -8,6 +8,7 @@ interface ParcelDetailsProps {
   destination?: string | null;
   estimatedDelivery?: string | null;
   amount?: number | null;
+  weight?: string | null;
 }
 
 const ParcelDetails = ({ 
@@ -16,7 +17,8 @@ const ParcelDetails = ({
   origin,
   destination,
   estimatedDelivery,
-  amount
+  amount,
+  weight
 }: ParcelDetailsProps) => {
   const parcelData = {
     trackingNumber: trackingNumber || "SWD-2026-78542",
@@ -24,7 +26,7 @@ const ParcelDetails = ({
     recipient: "John Smith",
     origin: origin || "London, UK",
     destination: destination || "Manchester, UK",
-    weight: "2.5 kg",
+    weight: weight || "2.5 kg",
     dimensions: "30 × 20 × 15 cm",
     shippingDate: "Jan 18, 2026",
     estimatedDelivery: estimatedDelivery || "Jan 21, 2026",

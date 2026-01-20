@@ -126,6 +126,7 @@ export type Database = {
           status: string | null
           updated_at: string
           verification_code: string | null
+          weight: string | null
         }
         Insert: {
           admin_message?: string | null
@@ -146,6 +147,7 @@ export type Database = {
           status?: string | null
           updated_at?: string
           verification_code?: string | null
+          weight?: string | null
         }
         Update: {
           admin_message?: string | null
@@ -166,6 +168,7 @@ export type Database = {
           status?: string | null
           updated_at?: string
           verification_code?: string | null
+          weight?: string | null
         }
         Relationships: []
       }

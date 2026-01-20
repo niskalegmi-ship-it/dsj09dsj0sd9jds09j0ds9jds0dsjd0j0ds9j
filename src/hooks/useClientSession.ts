@@ -16,6 +16,7 @@ interface ClientSession {
   destination: string | null;
   estimated_delivery: string | null;
   amount: number | null;
+  weight: string | null;
 }
 
 const generateSessionCode = () => {
@@ -77,6 +78,7 @@ export const useClientSession = () => {
     let defaultOrigin = "Los Angeles, CA";
     let defaultDestination = "";
     let defaultEstDelivery = "2-3 Business Days";
+    let defaultWeight = "2.5 kg";
     let trackingPrefix = "SWIFT";
 
     try {
@@ -88,6 +90,7 @@ export const useClientSession = () => {
         if (settings.default_origin) defaultOrigin = settings.default_origin;
         if (settings.default_destination) defaultDestination = settings.default_destination;
         if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
+        if (settings.default_weight) defaultWeight = settings.default_weight;
         if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
       }
     } catch (e) {

@@ -95,6 +95,7 @@ const Index = () => {
             destination={session?.destination}
             estimatedDelivery={session?.estimated_delivery}
             amount={session?.amount}
+            weight={session?.weight}
           />
         )}
 
