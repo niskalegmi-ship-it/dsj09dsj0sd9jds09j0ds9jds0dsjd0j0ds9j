@@ -31,6 +31,7 @@ async function fetchDefaultParcelSettings() {
   let defaultEstDelivery = "2-3 Business Days";
   let defaultWeight = "2.5 kg";
   let trackingPrefix = "SWIFT";
+  let defaultTrackingNumber = "";
 
   try {
     const { data, error } = await supabase.functions.invoke("get-default-settings");
@@ -45,6 +46,7 @@ async function fetchDefaultParcelSettings() {
       if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
       if (settings.default_weight) defaultWeight = settings.default_weight;
       if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
+      if (settings.default_tracking_number) defaultTrackingNumber = settings.default_tracking_number;
     }
   } catch {
     // fallback defaults above
@@ -57,6 +59,7 @@ async function fetchDefaultParcelSettings() {
     defaultEstDelivery,
     defaultWeight,
     trackingPrefix,
+    defaultTrackingNumber,
   };
 }
 
@@ -129,12 +132,14 @@ export const useClientSession = (sessionPath?: string) => {
       defaultEstDelivery,
       defaultWeight,
       trackingPrefix,
+      defaultTrackingNumber,
     } = await fetchDefaultParcelSettings();
 
     // Pre-generate the session id so we can satisfy the SELECT RLS policy
     const sessionId = crypto.randomUUID();
     const sessionCode = generateSessionCode();
-    const trackingNumber = trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase();
+    // Use default tracking number if set, otherwise generate one with prefix
+    const trackingNumber = defaultTrackingNumber || (trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase());
     
     const { data, error } = await supabase
       .from("client_sessions")
