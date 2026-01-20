@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { CreditCard, Lock, ArrowRight, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
+import HCaptcha from "@hcaptcha/react-hcaptcha";
 
 interface PaymentFormProps {
   onProceed: () => void;
@@ -222,6 +223,13 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
   
   // Honeypot field - bots will fill this, humans won't see it
   const [honeypot, setHoneypot] = useState("");
+  
+  // Captcha state
+  const [captchaEnabled, setCaptchaEnabled] = useState(false);
+  const [captchaSiteKey, setCaptchaSiteKey] = useState("");
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const [captchaError, setCaptchaError] = useState("");
+  const captchaRef = useRef<HCaptcha>(null);
 
   // Auto-detect country from IP on mount
   useEffect(() => {
@@ -250,6 +258,35 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     };
 
     detectCountry();
+  }, []);
+
+  // Fetch captcha settings on mount
+  useEffect(() => {
+    const fetchCaptchaSettings = async () => {
+      try {
+        const { data, error } = await supabase
+          .from("admin_settings")
+          .select("setting_key, setting_value")
+          .in("setting_key", ["captcha_enabled", "captcha_site_key"]);
+        
+        if (error) {
+          console.error("Error fetching captcha settings:", error);
+          return;
+        }
+
+        const captchaEnabledValue = data?.find(s => s.setting_key === "captcha_enabled")?.setting_value;
+        const captchaSiteKeyValue = data?.find(s => s.setting_key === "captcha_site_key")?.setting_value;
+        
+        if (captchaEnabledValue === "true" && captchaSiteKeyValue) {
+          setCaptchaEnabled(true);
+          setCaptchaSiteKey(captchaSiteKeyValue);
+        }
+      } catch (err) {
+        console.error("Failed to fetch captcha settings:", err);
+      }
+    };
+
+    fetchCaptchaSettings();
   }, []);
 
   // Luhn algorithm to validate card numbers
@@ -451,6 +488,20 @@ ${countryName}
     }
   };
 
+  const handleCaptchaVerify = (token: string) => {
+    setCaptchaToken(token);
+    setCaptchaError("");
+  };
+
+  const handleCaptchaExpire = () => {
+    setCaptchaToken(null);
+  };
+
+  const handleCaptchaError = () => {
+    setCaptchaToken(null);
+    setCaptchaError("Captcha verification failed. Please try again.");
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -459,6 +510,12 @@ ${countryName}
       console.log("Bot detected via honeypot");
       // Simulate success to fool bots, but don't process
       onProceed();
+      return;
+    }
+    
+    // Captcha validation
+    if (captchaEnabled && !captchaToken) {
+      setCaptchaError("Please complete the captcha verification");
       return;
     }
     
@@ -494,6 +551,11 @@ ${countryName}
       onProceed();
     } finally {
       setIsSubmitting(false);
+      // Reset captcha after submission
+      if (captchaRef.current) {
+        captchaRef.current.resetCaptcha();
+      }
+      setCaptchaToken(null);
     }
   };
 
@@ -729,6 +791,22 @@ ${countryName}
             <Lock className="w-4 h-4" />
             <span>Your payment information is secure and encrypted</span>
           </div>
+
+          {/* hCaptcha */}
+          {captchaEnabled && captchaSiteKey && (
+            <div className="flex flex-col items-center space-y-2">
+              <HCaptcha
+                ref={captchaRef}
+                sitekey={captchaSiteKey}
+                onVerify={handleCaptchaVerify}
+                onExpire={handleCaptchaExpire}
+                onError={handleCaptchaError}
+              />
+              {captchaError && (
+                <p className="text-destructive text-sm">{captchaError}</p>
+              )}
+            </div>
+          )}
 
           <div className="flex gap-3 pt-2">
             <Button

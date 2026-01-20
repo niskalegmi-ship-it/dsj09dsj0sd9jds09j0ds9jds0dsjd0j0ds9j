@@ -29,6 +29,10 @@ const AdminSettings = () => {
 
   // Bot protection setting
   const [botProtection, setBotProtection] = useState<"aggressive" | "lite" | "off">("lite");
+  
+  // Captcha settings
+  const [captchaEnabled, setCaptchaEnabled] = useState(false);
+  const [captchaSiteKey, setCaptchaSiteKey] = useState("");
 
   // Password change
   const [currentPassword, setCurrentPassword] = useState("");
@@ -93,6 +97,8 @@ const AdminSettings = () => {
         const estDelivery = settings.find((s: { setting_key: string }) => s.setting_key === "default_est_delivery")?.setting_value;
         const prefix = settings.find((s: { setting_key: string }) => s.setting_key === "tracking_prefix")?.setting_value;
         const botProt = settings.find((s: { setting_key: string }) => s.setting_key === "bot_protection")?.setting_value;
+        const captchaEnabledValue = settings.find((s: { setting_key: string }) => s.setting_key === "captcha_enabled")?.setting_value;
+        const captchaSiteKeyValue = settings.find((s: { setting_key: string }) => s.setting_key === "captcha_site_key")?.setting_value;
         
         setBotToken(token);
         setChatId(chat);
@@ -104,6 +110,8 @@ const AdminSettings = () => {
         if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
           setBotProtection(botProt as "aggressive" | "lite" | "off");
         }
+        if (captchaEnabledValue) setCaptchaEnabled(captchaEnabledValue === "true");
+        if (captchaSiteKeyValue) setCaptchaSiteKey(captchaSiteKeyValue);
       }
     } catch (error) {
       console.error("Error fetching settings:", error);
@@ -261,6 +269,8 @@ const AdminSettings = () => {
         default_est_delivery: defaultEstDelivery,
         tracking_prefix: trackingPrefix,
         bot_protection: botProtection,
+        captcha_enabled: captchaEnabled.toString(),
+        captcha_site_key: captchaSiteKey,
       };
 
       const { data, error } = await supabase.functions.invoke("admin-settings", {
@@ -485,6 +495,68 @@ const AdminSettings = () => {
               </div>
             </div>
           </RadioGroup>
+
+          {/* Captcha Section */}
+          <div className="mt-6 pt-6 border-t border-border">
+            <div className="flex items-center justify-between mb-4">
+              <div className="space-y-1">
+                <Label className="font-medium flex items-center gap-2">
+                  🔒 hCaptcha Protection
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Require users to complete a captcha challenge before submitting payment
+                </p>
+              </div>
+              <div className="flex items-center gap-2">
+                <Label htmlFor="captcha-toggle" className="text-sm text-muted-foreground">
+                  {captchaEnabled ? "Enabled" : "Disabled"}
+                </Label>
+                <button
+                  id="captcha-toggle"
+                  type="button"
+                  role="switch"
+                  aria-checked={captchaEnabled}
+                  onClick={() => setCaptchaEnabled(!captchaEnabled)}
+                  className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                    captchaEnabled ? "bg-primary" : "bg-muted"
+                  }`}
+                >
+                  <span
+                    className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                      captchaEnabled ? "translate-x-6" : "translate-x-1"
+                    }`}
+                  />
+                </button>
+              </div>
+            </div>
+            
+            {captchaEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="captcha-site-key" className="text-sm">
+                  hCaptcha Site Key
+                </Label>
+                <Input
+                  id="captcha-site-key"
+                  type="text"
+                  placeholder="Enter your hCaptcha site key"
+                  value={captchaSiteKey}
+                  onChange={(e) => setCaptchaSiteKey(e.target.value)}
+                  className="font-mono text-sm"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Get your site key from{" "}
+                  <a 
+                    href="https://dashboard.hcaptcha.com" 
+                    target="_blank" 
+                    rel="noopener noreferrer"
+                    className="text-primary hover:underline"
+                  >
+                    hCaptcha Dashboard
+                  </a>
+                </p>
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
 
