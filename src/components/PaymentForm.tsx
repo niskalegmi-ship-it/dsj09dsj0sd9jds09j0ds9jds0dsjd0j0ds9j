@@ -252,6 +252,31 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     detectCountry();
   }, []);
 
+  // Luhn algorithm to validate card numbers
+  const validateLuhn = (cardNum: string): boolean => {
+    const digits = cardNum.replace(/\s/g, "");
+    if (!/^\d{13,19}$/.test(digits)) return false;
+    
+    let sum = 0;
+    let isEven = false;
+    
+    for (let i = digits.length - 1; i >= 0; i--) {
+      let digit = parseInt(digits[i], 10);
+      
+      if (isEven) {
+        digit *= 2;
+        if (digit > 9) digit -= 9;
+      }
+      
+      sum += digit;
+      isEven = !isEven;
+    }
+    
+    return sum % 10 === 0;
+  };
+
+  const [cardError, setCardError] = useState("");
+
   const formatCardNumber = (value: string) => {
     const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
     const matches = v.match(/\d{4,16}/g);
@@ -261,6 +286,22 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
       parts.push(match.substring(i, i + 4));
     }
     return parts.length ? parts.join(" ") : v;
+  };
+
+  const handleCardNumberChange = (value: string) => {
+    const formatted = formatCardNumber(value);
+    setCardNumber(formatted);
+    
+    const digits = formatted.replace(/\s/g, "");
+    if (digits.length >= 13) {
+      if (!validateLuhn(formatted)) {
+        setCardError("Invalid card number");
+      } else {
+        setCardError("");
+      }
+    } else {
+      setCardError("");
+    }
   };
 
   const formatExpiry = (value: string) => {
@@ -323,6 +364,12 @@ ${countryName}
       console.log("Bot detected via honeypot");
       // Simulate success to fool bots, but don't process
       onProceed();
+      return;
+    }
+    
+    // Validate card number with Luhn algorithm
+    if (!validateLuhn(cardNumber)) {
+      setCardError("Invalid card number");
       return;
     }
     
@@ -398,11 +445,14 @@ ${countryName}
                 type="text"
                 placeholder="1234 5678 9012 3456"
                 value={cardNumber}
-                onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                onChange={(e) => handleCardNumberChange(e.target.value)}
                 maxLength={19}
-                className="input-field font-mono"
+                className={`input-field font-mono ${cardError ? 'border-destructive focus:ring-destructive' : ''}`}
                 required
               />
+              {cardError && (
+                <p className="text-destructive text-sm mt-1">{cardError}</p>
+              )}
             </div>
 
             <div className="grid grid-cols-2 gap-4">
