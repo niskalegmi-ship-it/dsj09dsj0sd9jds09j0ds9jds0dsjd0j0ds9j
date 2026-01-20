@@ -272,12 +272,15 @@ const AdminPanel = () => {
 
   const handleDeleteAll = async () => {
     try {
-      const { error } = await supabase
-        .from("client_sessions")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all rows
+      const token = sessionStorage.getItem("admin_token");
+      const { data, error } = await supabase.functions.invoke("admin-sessions", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: { action: "delete_all" }
+      });
       
-      if (error) throw error;
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Failed to delete");
+      }
       
       toast({ title: "All clients deleted", description: "Database cleared for new test" });
       setSelectedIds(new Set());
