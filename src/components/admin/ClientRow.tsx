@@ -13,6 +13,7 @@ import {
   Copy,
   Bell,
   Pencil,
+  Link,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -36,6 +37,7 @@ interface ClientSession {
   destination: string | null;
   estimated_delivery: string | null;
   weight: string | null;
+  session_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,9 +65,18 @@ interface ClientRowProps {
 export function ClientRow({ session, isSelected = false, onToggleSelect }: ClientRowProps) {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
 
-  const copyToClipboard = (text: string) => {
+  const copyToClipboard = (text: string, label?: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: "Copied!" });
+    toast({ title: label || "Copied!" });
+  };
+
+  const copyClientUrl = () => {
+    if (session.session_path) {
+      const url = `${window.location.origin}/${session.session_path}`;
+      copyToClipboard(url, "Client URL copied!");
+    } else {
+      toast({ title: "No URL path available", variant: "destructive" });
+    }
   };
 
   // Actions
@@ -262,6 +273,15 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
           onClick={() => setEditDialogOpen(true)}
         >
           <Pencil className="w-3 h-3 mr-1" /> Edit
+        </Button>
+
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs text-blue-600 border-blue-300 hover:bg-blue-50" 
+          onClick={copyClientUrl}
+        >
+          <Link className="w-3 h-3 mr-1" /> Copy URL
         </Button>
 
         <Button 

@@ -123,6 +123,7 @@ export type Database = {
           parcel_tracking: string | null
           phone_number: string | null
           session_code: string
+          session_path: string | null
           status: string | null
           updated_at: string
           verification_code: string | null
@@ -144,6 +145,7 @@ export type Database = {
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code: string
+          session_path?: string | null
           status?: string | null
           updated_at?: string
           verification_code?: string | null
@@ -165,6 +167,7 @@ export type Database = {
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code?: string
+          session_path?: string | null
           status?: string | null
           updated_at?: string
           verification_code?: string | null
