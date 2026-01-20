@@ -73,17 +73,6 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
-      {/* Session indicator for demo */}
-      {session && (
-        <div className="bg-muted border-b border-border">
-          <div className="container mx-auto px-4 py-2 text-center">
-            <span className="text-sm text-muted-foreground">
-              Session: <span className="font-mono font-medium text-foreground">#{session.session_code}</span>
-            </span>
-          </div>
-        </div>
-      )}
-      
       <main className="container mx-auto px-4 py-8">
         {/* Admin Alert - show only when not on specific pages that handle their own alerts */}
         {adminMessage && !isPaymentWaiting && !isAppApproval && !isSmsVerification && (
