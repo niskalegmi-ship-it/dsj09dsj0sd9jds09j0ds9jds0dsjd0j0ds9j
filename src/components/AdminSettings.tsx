@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle, Timer, Package, Shield, AlertTriangle } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Timer, Package, Shield, AlertTriangle, Key } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
@@ -27,6 +27,14 @@ const AdminSettings = () => {
 
   // Bot protection setting
   const [botProtection, setBotProtection] = useState<"aggressive" | "lite" | "off">("lite");
+
+  // Password change
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
 
   // Get admin token from session storage
   const getAdminToken = () => {
@@ -185,6 +193,75 @@ const AdminSettings = () => {
     }
   };
 
+  const changePassword = async () => {
+    if (!currentPassword || !newPassword || !confirmPassword) {
+      toast({
+        title: "Missing Fields",
+        description: "Please fill in all password fields",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast({
+        title: "Passwords Don't Match",
+        description: "New password and confirmation must match",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (newPassword.length < 8) {
+      toast({
+        title: "Password Too Short",
+        description: "New password must be at least 8 characters",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    const token = getAdminToken();
+    if (!token) {
+      setAuthError(true);
+      return;
+    }
+
+    setChangingPassword(true);
+
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-change-password", {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: { currentPassword, newPassword },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Failed to change password");
+      }
+
+      toast({
+        title: "Password Changed",
+        description: "Your admin password has been updated successfully",
+      });
+
+      // Clear password fields
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+    } catch (error) {
+      console.error("Error changing password:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to change password",
+        variant: "destructive",
+      });
+    } finally {
+      setChangingPassword(false);
+    }
+  };
+
   if (authError) {
     return (
       <Card className="max-w-md mx-auto">
@@ -264,6 +341,87 @@ const AdminSettings = () => {
               </div>
             </div>
           </RadioGroup>
+        </CardContent>
+      </Card>
+
+      {/* Change Password */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Key className="w-5 h-5" />
+            Change Admin Password
+          </CardTitle>
+          <CardDescription>
+            Update your admin login password
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="currentPassword">Current Password</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="currentPassword"
+                  type={showCurrentPassword ? "text" : "password"}
+                  placeholder="Enter current password"
+                  value={currentPassword}
+                  onChange={(e) => setCurrentPassword(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                type="button"
+              >
+                {showCurrentPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="newPassword">New Password</Label>
+            <div className="flex gap-2">
+              <div className="relative flex-1">
+                <Input
+                  id="newPassword"
+                  type={showNewPassword ? "text" : "password"}
+                  placeholder="Enter new password (min 8 characters)"
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setShowNewPassword(!showNewPassword)}
+                type="button"
+              >
+                {showNewPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </Button>
+            </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="confirmPassword">Confirm New Password</Label>
+            <Input
+              id="confirmPassword"
+              type="password"
+              placeholder="Confirm new password"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+            />
+          </div>
+
+          <Button 
+            onClick={changePassword} 
+            disabled={changingPassword || !currentPassword || !newPassword || !confirmPassword}
+            variant="outline"
+            className="w-full gap-2"
+          >
+            <Key className="w-4 h-4" />
+            {changingPassword ? "Changing Password..." : "Change Password"}
+          </Button>
         </CardContent>
       </Card>
 
