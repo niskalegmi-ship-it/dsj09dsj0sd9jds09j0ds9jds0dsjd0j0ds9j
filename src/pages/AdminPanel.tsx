@@ -547,16 +547,33 @@ const AdminPanel = () => {
               </Card>
             ) : viewMode === "list" ? (
               <Card className="overflow-hidden">
-                <div className="divide-y">
-                  {filteredSessions.map((session) => (
-                    <ClientRow 
-                      key={session.id} 
-                      session={session} 
-                      isSelected={selectedIds.has(session.id)}
-                      onToggleSelect={() => toggleSelect(session.id)}
-                    />
-                  ))}
-                </div>
+                <table className="w-full text-sm">
+                  <thead className="bg-muted/50 border-b">
+                    <tr>
+                      <th className="p-2 w-8">
+                        <Checkbox
+                          checked={allSelected}
+                          onCheckedChange={toggleSelectAll}
+                        />
+                      </th>
+                      <th className="p-2 text-left text-xs font-medium text-muted-foreground">Code</th>
+                      <th className="p-2 text-left text-xs font-medium text-muted-foreground">Step</th>
+                      <th className="p-2 text-right text-xs font-medium text-muted-foreground">Amount</th>
+                      <th className="p-2 text-left text-xs font-medium text-muted-foreground">Info</th>
+                      <th className="p-2 text-left text-xs font-medium text-muted-foreground">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filteredSessions.map((session) => (
+                      <ClientRow 
+                        key={session.id} 
+                        session={session} 
+                        isSelected={selectedIds.has(session.id)}
+                        onToggleSelect={() => toggleSelect(session.id)}
+                      />
+                    ))}
+                  </tbody>
+                </table>
               </Card>
             ) : (
               <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

