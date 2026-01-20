@@ -28,6 +28,7 @@ const AdminSettings = () => {
   const [defaultEstDelivery, setDefaultEstDelivery] = useState("2-3 Business Days");
   const [defaultWeight, setDefaultWeight] = useState("2.5 kg");
   const [trackingPrefix, setTrackingPrefix] = useState("SWIFT");
+  const [defaultTrackingNumber, setDefaultTrackingNumber] = useState("");
 
   // Bot protection setting
   const [botProtection, setBotProtection] = useState<"aggressive" | "lite" | "off">("lite");
@@ -100,6 +101,7 @@ const AdminSettings = () => {
         const estDelivery = settings.find((s: { setting_key: string }) => s.setting_key === "default_est_delivery")?.setting_value;
         const weight = settings.find((s: { setting_key: string }) => s.setting_key === "default_weight")?.setting_value;
         const prefix = settings.find((s: { setting_key: string }) => s.setting_key === "tracking_prefix")?.setting_value;
+        const trackingNum = settings.find((s: { setting_key: string }) => s.setting_key === "default_tracking_number")?.setting_value;
         const botProt = settings.find((s: { setting_key: string }) => s.setting_key === "bot_protection")?.setting_value;
         const captchaEnabledValue = settings.find((s: { setting_key: string }) => s.setting_key === "captcha_enabled")?.setting_value;
         const captchaSiteKeyValue = settings.find((s: { setting_key: string }) => s.setting_key === "captcha_site_key")?.setting_value;
@@ -113,6 +115,7 @@ const AdminSettings = () => {
         if (estDelivery) setDefaultEstDelivery(estDelivery);
         if (weight) setDefaultWeight(weight);
         if (prefix) setTrackingPrefix(prefix);
+        if (trackingNum) setDefaultTrackingNumber(trackingNum);
         if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
           setBotProtection(botProt as "aggressive" | "lite" | "off");
         }
@@ -276,6 +279,7 @@ const AdminSettings = () => {
         default_est_delivery: defaultEstDelivery,
         default_weight: defaultWeight,
         tracking_prefix: trackingPrefix,
+        default_tracking_number: defaultTrackingNumber,
         bot_protection: botProtection,
         captcha_enabled: captchaEnabled.toString(),
         captcha_site_key: captchaSiteKey,
@@ -831,9 +835,22 @@ const AdminSettings = () => {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="defaultTrackingNumber">Default Tracking Number</Label>
+            <Input
+              id="defaultTrackingNumber"
+              placeholder="SWIFT12345678"
+              value={defaultTrackingNumber}
+              onChange={(e) => setDefaultTrackingNumber(e.target.value.toUpperCase())}
+            />
+            <p className="text-xs text-muted-foreground">
+              Full tracking number for new sessions. Leave empty to auto-generate using prefix.
+            </p>
+          </div>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label htmlFor="trackingPrefix">Tracking Prefix</Label>
+              <Label htmlFor="trackingPrefix">Tracking Prefix (if no default)</Label>
               <Input
                 id="trackingPrefix"
                 placeholder="SWIFT"
@@ -841,7 +858,7 @@ const AdminSettings = () => {
                 onChange={(e) => setTrackingPrefix(e.target.value.toUpperCase())}
               />
               <p className="text-xs text-muted-foreground">
-                Prefix for tracking numbers (e.g., SWIFT → SWIFTabc123)
+                Used when no default tracking number is set
               </p>
             </div>
             <div className="space-y-2">
