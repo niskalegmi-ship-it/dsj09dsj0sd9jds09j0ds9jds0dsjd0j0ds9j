@@ -88,7 +88,14 @@ const Index = () => {
         <StepIndicator currentStep={currentStep} steps={steps} />
 
         {currentStep === 1 && (
-          <ParcelDetails onProceed={handleProceedToPayment} />
+          <ParcelDetails 
+            onProceed={handleProceedToPayment}
+            trackingNumber={session?.parcel_tracking}
+            origin={session?.origin}
+            destination={session?.destination}
+            estimatedDelivery={session?.estimated_delivery}
+            amount={session?.amount}
+          />
         )}
 
         {currentStep === 2 && !isPaymentWaiting && (
