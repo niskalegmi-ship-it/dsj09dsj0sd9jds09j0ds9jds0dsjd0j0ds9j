@@ -23,6 +23,7 @@ serve(async (req: Request) => {
       "default_origin",
       "default_destination",
       "default_est_delivery",
+      "default_weight",
       "tracking_prefix"
     ];
 

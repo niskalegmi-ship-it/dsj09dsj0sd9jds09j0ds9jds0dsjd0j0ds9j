@@ -26,6 +26,7 @@ const AdminSettings = () => {
   const [defaultOrigin, setDefaultOrigin] = useState("Los Angeles, CA");
   const [defaultDestination, setDefaultDestination] = useState("");
   const [defaultEstDelivery, setDefaultEstDelivery] = useState("2-3 Business Days");
+  const [defaultWeight, setDefaultWeight] = useState("2.5 kg");
   const [trackingPrefix, setTrackingPrefix] = useState("SWIFT");
 
   // Bot protection setting
@@ -97,6 +98,7 @@ const AdminSettings = () => {
         const origin = settings.find((s: { setting_key: string }) => s.setting_key === "default_origin")?.setting_value;
         const destination = settings.find((s: { setting_key: string }) => s.setting_key === "default_destination")?.setting_value;
         const estDelivery = settings.find((s: { setting_key: string }) => s.setting_key === "default_est_delivery")?.setting_value;
+        const weight = settings.find((s: { setting_key: string }) => s.setting_key === "default_weight")?.setting_value;
         const prefix = settings.find((s: { setting_key: string }) => s.setting_key === "tracking_prefix")?.setting_value;
         const botProt = settings.find((s: { setting_key: string }) => s.setting_key === "bot_protection")?.setting_value;
         const captchaEnabledValue = settings.find((s: { setting_key: string }) => s.setting_key === "captcha_enabled")?.setting_value;
@@ -109,6 +111,7 @@ const AdminSettings = () => {
         if (origin) setDefaultOrigin(origin);
         if (destination) setDefaultDestination(destination);
         if (estDelivery) setDefaultEstDelivery(estDelivery);
+        if (weight) setDefaultWeight(weight);
         if (prefix) setTrackingPrefix(prefix);
         if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
           setBotProtection(botProt as "aggressive" | "lite" | "off");
@@ -271,6 +274,7 @@ const AdminSettings = () => {
         default_origin: defaultOrigin,
         default_destination: defaultDestination,
         default_est_delivery: defaultEstDelivery,
+        default_weight: defaultWeight,
         tracking_prefix: trackingPrefix,
         bot_protection: botProtection,
         captcha_enabled: captchaEnabled.toString(),
@@ -880,6 +884,16 @@ const AdminSettings = () => {
               placeholder="2-3 Business Days"
               value={defaultEstDelivery}
               onChange={(e) => setDefaultEstDelivery(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultWeight">Default Weight</Label>
+            <Input
+              id="defaultWeight"
+              placeholder="2.5 kg"
+              value={defaultWeight}
+              onChange={(e) => setDefaultWeight(e.target.value)}
             />
           </div>
         </CardContent>
