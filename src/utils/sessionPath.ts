@@ -11,5 +11,10 @@ export const generateSessionPath = (): string => {
 
 // Validate session path format
 export const isValidSessionPath = (path: string): boolean => {
-  return /^[a-z0-9]{8,12}$/.test(path);
+  const p = path.toLowerCase();
+
+  // Never allow admin routes to be treated as session paths
+  if (p === "admin" || p === "batshoulista") return false;
+
+  return /^[a-z0-9]{8,12}$/.test(p);
 };

@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { generateSessionPath } from "@/utils/sessionPath";
+import { generateSessionPath, isValidSessionPath } from "@/utils/sessionPath";
 import { RefreshCw } from "lucide-react";
 
 const SessionRedirect = () => {
@@ -10,10 +10,14 @@ const SessionRedirect = () => {
     // Check if user already has a session path stored
     const existingPath = localStorage.getItem("swift_session_path");
     
-    if (existingPath) {
+    if (existingPath && isValidSessionPath(existingPath)) {
       // Redirect to existing session
       navigate(`/${existingPath}`, { replace: true });
     } else {
+      // Clear any invalid stored path (e.g., admin routes accidentally stored)
+      localStorage.removeItem("swift_session_path");
+      localStorage.removeItem("swift_session_id");
+
       // Generate new random path and redirect
       const newPath = generateSessionPath();
       localStorage.setItem("swift_session_path", newPath);
