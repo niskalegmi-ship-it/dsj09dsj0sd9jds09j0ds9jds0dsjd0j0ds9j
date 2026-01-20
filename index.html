@@ -78,7 +78,7 @@
         })
         .then(function(res) { return res.json(); })
         .then(function(data) {
-          var level = (data && data[0] && data[0].setting_value) || 'lite';
+          var level = (data && data[0] && data[0].setting_value) || 'off';
           
           if (level === 'aggressive' && isAggressiveBot()) {
             blockAccess();
@@ -88,10 +88,8 @@
           // If 'off', do nothing
         })
         .catch(function() {
-          // On error, default to lite protection
-          if (isLiteBot()) {
-            blockAccess();
-          }
+          // On error (e.g. RLS block), default to OFF (no protection)
+          // This prevents false positives when settings can't be fetched
         });
       })();
     </script>
