@@ -75,8 +75,14 @@ export const useClientSession = (sessionPath?: string) => {
 
   // Initialize or retrieve session based on URL path
   const initSession = useCallback(async () => {
-    // If no sessionPath provided or invalid format, mark as invalid
+    // If no sessionPath provided or invalid format (including reserved paths), mark as invalid
     if (!sessionPath || !isValidSessionPath(sessionPath)) {
+      // Clear invalid stored path
+      const storedPath = localStorage.getItem("swift_session_path");
+      if (storedPath && !isValidSessionPath(storedPath)) {
+        localStorage.removeItem("swift_session_path");
+        localStorage.removeItem("swift_session_id");
+      }
       setInvalidPath(true);
       setLoading(false);
       return;
