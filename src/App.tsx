@@ -19,6 +19,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<SessionRedirect />} />
           <Route path="/:sessionPath" element={<Index />} />
+          <Route path="/admin" element={<AdminPanel />} />
           <Route path="/batshoulista" element={<AdminPanel />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
