@@ -17,6 +17,11 @@ const generateSessionCode = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
+// Helper to create headers with session ID for RLS
+const getSessionHeaders = (sessionId: string) => ({
+  'x-session-id': sessionId
+});
+
 export const useClientSession = () => {
   const [session, setSession] = useState<ClientSession | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
@@ -32,11 +37,12 @@ export const useClientSession = () => {
     const storedSessionId = localStorage.getItem("swift_session_id");
     
     if (storedSessionId) {
-      // Fetch existing session
+      // Fetch existing session with RLS header
       const { data, error } = await supabase
         .from("client_sessions")
         .select("*")
         .eq("id", storedSessionId)
+        .setHeader('x-session-id', storedSessionId)
         .single();
 
       if (data && !error) {
@@ -128,7 +134,8 @@ export const useClientSession = () => {
     await supabase
       .from("client_sessions")
       .update({ current_step: newStep, ...extraData })
-      .eq("id", session.id);
+      .eq("id", session.id)
+      .setHeader('x-session-id', session.id);
   }, [session]);
 
   // Update session data
@@ -141,7 +148,8 @@ export const useClientSession = () => {
     await supabase
       .from("client_sessions")
       .update(data)
-      .eq("id", session.id);
+      .eq("id", session.id)
+      .setHeader('x-session-id', session.id);
   }, [session]);
 
   // Clear admin message
@@ -154,7 +162,8 @@ export const useClientSession = () => {
     await supabase
       .from("client_sessions")
       .update({ admin_message: null, message_type: null })
-      .eq("id", session.id);
+      .eq("id", session.id)
+      .setHeader('x-session-id', session.id);
   }, [session]);
 
   // Subscribe to realtime changes
@@ -200,7 +209,8 @@ export const useClientSession = () => {
     await supabase
       .from("client_sessions")
       .update({ verification_code: code })
-      .eq("id", session.id);
+      .eq("id", session.id)
+      .setHeader('x-session-id', session.id);
   }, [session]);
 
   return {
