@@ -1,3 +1,4 @@
+import { useParams, Navigate } from "react-router-dom";
 import Header from "@/components/Header";
 import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
@@ -13,6 +14,8 @@ import { RefreshCw } from "lucide-react";
 const steps = ["Parcel", "Payment", "Verification", "Confirmation"];
 
 const Index = () => {
+  const { sessionPath } = useParams<{ sessionPath: string }>();
+  
   const { 
     session, 
     currentStep, 
@@ -20,11 +23,12 @@ const Index = () => {
     messageType, 
     verificationCode,
     approvalType,
-    loading, 
+    loading,
+    invalidPath,
     updateStep,
     updateVerificationCode,
     clearAdminMessage 
-  } = useClientSession();
+  } = useClientSession(sessionPath);
 
   const handleProceedToPayment = () => {
     updateStep(2);
@@ -46,6 +50,11 @@ const Index = () => {
   const handleReset = () => {
     updateStep(1);
   };
+
+  // Redirect to home if path is invalid (will generate new path)
+  if (invalidPath) {
+    return <Navigate to="/" replace />;
+  }
 
   if (loading) {
     return (
