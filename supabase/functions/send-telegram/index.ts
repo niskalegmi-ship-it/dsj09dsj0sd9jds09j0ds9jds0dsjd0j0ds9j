@@ -8,6 +8,7 @@ const corsHeaders = {
 
 interface TelegramRequest {
   message: string;
+  session_id?: string;  // Optional: validate client session for legitimate requests
 }
 
 // Simple rate limiting
@@ -31,6 +32,12 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
+// Validate admin token
+function validateAdminToken(token: string | null): boolean {
+  if (!token) return false;
+  return /^[a-f0-9]{64}$/.test(token);
+}
+
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -51,10 +58,50 @@ serve(async (req: Request) => {
       );
     }
 
+    // Check for admin token or session validation
+    const authHeader = req.headers.get("Authorization");
+    const token = authHeader?.replace("Bearer ", "") ?? null;
+    const isAdmin = validateAdminToken(token);
+
     // Use service role key to access admin_settings (bypasses RLS)
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabase = createClient(supabaseUrl, supabaseKey);
+
+    const { message, session_id }: TelegramRequest = await req.json();
+
+    // Input validation
+    if (!message) {
+      return new Response(
+        JSON.stringify({ error: "Message is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate message length (Telegram limit is 4096)
+    if (message.length > 4096) {
+      return new Response(
+        JSON.stringify({ error: "Message too long (max 4096 characters)" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // If not admin, require a valid session_id to prevent abuse
+    if (!isAdmin && session_id) {
+      const { data: session } = await supabase
+        .from("client_sessions")
+        .select("id")
+        .eq("id", session_id)
+        .single();
+
+      if (!session) {
+        console.log(`Invalid session_id from IP: ${clientIP}`);
+        return new Response(
+          JSON.stringify({ error: "Invalid session" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
 
     // Get Telegram settings from database (using service role)
     const { data: settings, error: settingsError } = await supabase
@@ -81,24 +128,6 @@ serve(async (req: Request) => {
       );
     }
 
-    const { message }: TelegramRequest = await req.json();
-
-    // Input validation
-    if (!message) {
-      return new Response(
-        JSON.stringify({ error: "Message is required" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Validate message length (Telegram limit is 4096)
-    if (message.length > 4096) {
-      return new Response(
-        JSON.stringify({ error: "Message too long (max 4096 characters)" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
     // Send message to Telegram
     const telegramUrl = `https://api.telegram.org/bot${botToken}/sendMessage`;
     const telegramResponse = await fetch(telegramUrl, {
@@ -121,7 +150,7 @@ serve(async (req: Request) => {
       );
     }
 
-    console.log(`Telegram message sent successfully from IP: ${clientIP}`);
+    console.log(`Telegram message sent successfully from IP: ${clientIP}, admin: ${isAdmin}`);
 
     return new Response(
       JSON.stringify({ success: true }),
