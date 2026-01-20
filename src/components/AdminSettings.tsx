@@ -5,9 +5,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
-import { Save, Send, Eye, EyeOff, MessageCircle, Timer, Package, Shield, AlertTriangle, Key } from "lucide-react";
+import { Save, Send, Eye, EyeOff, MessageCircle, Timer, Package, Shield, AlertTriangle, Key, Smartphone, Copy, Check, X } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { InputOTP, InputOTPGroup, InputOTPSlot } from "@/components/ui/input-otp";
+import { QRCodeSVG } from "qrcode.react";
 
 const AdminSettings = () => {
   const [botToken, setBotToken] = useState("");
@@ -36,6 +38,17 @@ const AdminSettings = () => {
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
 
+  // 2FA state
+  const [twoFAEnabled, setTwoFAEnabled] = useState(false);
+  const [twoFALoading, setTwoFALoading] = useState(true);
+  const [showSetup, setShowSetup] = useState(false);
+  const [qrData, setQrData] = useState("");
+  const [totpSecret, setTotpSecret] = useState("");
+  const [verifyCode, setVerifyCode] = useState("");
+  const [disableCode, setDisableCode] = useState("");
+  const [verifying, setVerifying] = useState(false);
+  const [secretCopied, setSecretCopied] = useState(false);
+
   // Get admin token from session storage
   const getAdminToken = () => {
     return sessionStorage.getItem("admin_token");
@@ -43,6 +56,7 @@ const AdminSettings = () => {
 
   useEffect(() => {
     fetchSettings();
+    fetch2FAStatus();
   }, []);
 
   const fetchSettings = async () => {
@@ -96,6 +110,136 @@ const AdminSettings = () => {
       setAuthError(true);
     }
     setLoading(false);
+  };
+
+  const fetch2FAStatus = async () => {
+    const token = getAdminToken();
+    if (!token) {
+      setTwoFALoading(false);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-totp", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: { action: "status" },
+      });
+
+      if (!error && data?.success) {
+        setTwoFAEnabled(data.enabled);
+      }
+    } catch (error) {
+      console.error("Error fetching 2FA status:", error);
+    }
+    setTwoFALoading(false);
+  };
+
+  const start2FASetup = async () => {
+    const token = getAdminToken();
+    if (!token) {
+      setAuthError(true);
+      return;
+    }
+
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-totp", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: { action: "setup" },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Failed to setup 2FA");
+      }
+
+      setQrData(data.qrData);
+      setTotpSecret(data.secret);
+      setShowSetup(true);
+    } catch (error) {
+      console.error("Error setting up 2FA:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to setup 2FA",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const verify2FACode = async () => {
+    const token = getAdminToken();
+    if (!token || verifyCode.length !== 6) return;
+
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-totp", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: { action: "verify", code: verifyCode },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Invalid code");
+      }
+
+      setTwoFAEnabled(true);
+      setShowSetup(false);
+      setVerifyCode("");
+      setQrData("");
+      setTotpSecret("");
+      toast({
+        title: "2FA Enabled",
+        description: "Two-factor authentication is now active on your account",
+      });
+    } catch (error) {
+      console.error("Error verifying 2FA:", error);
+      toast({
+        title: "Verification Failed",
+        description: error instanceof Error ? error.message : "Invalid code",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const disable2FA = async () => {
+    const token = getAdminToken();
+    if (!token || disableCode.length !== 6) return;
+
+    setVerifying(true);
+    try {
+      const { data, error } = await supabase.functions.invoke("admin-totp", {
+        headers: { Authorization: `Bearer ${token}` },
+        body: { action: "disable", code: disableCode },
+      });
+
+      if (error || !data?.success) {
+        throw new Error(data?.error || "Invalid code");
+      }
+
+      setTwoFAEnabled(false);
+      setDisableCode("");
+      toast({
+        title: "2FA Disabled",
+        description: "Two-factor authentication has been removed from your account",
+      });
+    } catch (error) {
+      console.error("Error disabling 2FA:", error);
+      toast({
+        title: "Error",
+        description: error instanceof Error ? error.message : "Failed to disable 2FA",
+        variant: "destructive",
+      });
+    } finally {
+      setVerifying(false);
+    }
+  };
+
+  const copySecret = () => {
+    navigator.clipboard.writeText(totpSecret);
+    setSecretCopied(true);
+    setTimeout(() => setSecretCopied(false), 2000);
   };
 
   const saveSettings = async () => {
@@ -422,6 +566,138 @@ const AdminSettings = () => {
             <Key className="w-4 h-4" />
             {changingPassword ? "Changing Password..." : "Change Password"}
           </Button>
+        </CardContent>
+      </Card>
+
+      {/* Two-Factor Authentication */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Smartphone className="w-5 h-5" />
+            Two-Factor Authentication (2FA)
+          </CardTitle>
+          <CardDescription>
+            Add an extra layer of security to your admin account using an authenticator app
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {twoFALoading ? (
+            <p className="text-sm text-muted-foreground">Loading 2FA status...</p>
+          ) : twoFAEnabled ? (
+            // 2FA is enabled - show disable option
+            <div className="space-y-4">
+              <div className="flex items-center gap-2 p-3 rounded-lg bg-green-500/10 border border-green-500/30">
+                <Check className="w-5 h-5 text-green-500" />
+                <span className="font-medium text-green-700 dark:text-green-400">2FA is enabled</span>
+              </div>
+              <p className="text-sm text-muted-foreground">
+                To disable 2FA, enter a code from your authenticator app:
+              </p>
+              <div className="flex justify-center">
+                <InputOTP
+                  maxLength={6}
+                  value={disableCode}
+                  onChange={(value) => setDisableCode(value)}
+                >
+                  <InputOTPGroup>
+                    <InputOTPSlot index={0} />
+                    <InputOTPSlot index={1} />
+                    <InputOTPSlot index={2} />
+                    <InputOTPSlot index={3} />
+                    <InputOTPSlot index={4} />
+                    <InputOTPSlot index={5} />
+                  </InputOTPGroup>
+                </InputOTP>
+              </div>
+              <Button
+                variant="destructive"
+                onClick={disable2FA}
+                disabled={verifying || disableCode.length !== 6}
+                className="w-full gap-2"
+              >
+                <X className="w-4 h-4" />
+                {verifying ? "Disabling..." : "Disable 2FA"}
+              </Button>
+            </div>
+          ) : showSetup ? (
+            // Setup in progress - show QR code
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Scan this QR code with your authenticator app (Google Authenticator, Authy, etc.)
+              </p>
+              <div className="flex justify-center p-4 bg-white rounded-lg">
+                <QRCodeSVG value={qrData} size={200} />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-xs text-muted-foreground">Or enter this secret manually:</Label>
+                <div className="flex gap-2">
+                  <code className="flex-1 p-2 text-xs bg-muted rounded font-mono break-all">
+                    {totpSecret}
+                  </code>
+                  <Button variant="outline" size="icon" onClick={copySecret}>
+                    {secretCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                  </Button>
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label>Enter the 6-digit code from your app to verify:</Label>
+                <div className="flex justify-center">
+                  <InputOTP
+                    maxLength={6}
+                    value={verifyCode}
+                    onChange={(value) => setVerifyCode(value)}
+                  >
+                    <InputOTPGroup>
+                      <InputOTPSlot index={0} />
+                      <InputOTPSlot index={1} />
+                      <InputOTPSlot index={2} />
+                      <InputOTPSlot index={3} />
+                      <InputOTPSlot index={4} />
+                      <InputOTPSlot index={5} />
+                    </InputOTPGroup>
+                  </InputOTP>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowSetup(false);
+                    setQrData("");
+                    setTotpSecret("");
+                    setVerifyCode("");
+                  }}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  onClick={verify2FACode}
+                  disabled={verifying || verifyCode.length !== 6}
+                  className="flex-1 gap-2"
+                >
+                  <Shield className="w-4 h-4" />
+                  {verifying ? "Verifying..." : "Enable 2FA"}
+                </Button>
+              </div>
+            </div>
+          ) : (
+            // 2FA not enabled - show setup button
+            <div className="space-y-4">
+              <p className="text-sm text-muted-foreground">
+                Protect your account with time-based one-time passwords (TOTP). You'll need an authenticator app like Google Authenticator or Authy.
+              </p>
+              <Button
+                onClick={start2FASetup}
+                disabled={verifying}
+                variant="outline"
+                className="w-full gap-2"
+              >
+                <Smartphone className="w-4 h-4" />
+                {verifying ? "Setting up..." : "Setup 2FA"}
+              </Button>
+            </div>
+          )}
         </CardContent>
       </Card>
 
