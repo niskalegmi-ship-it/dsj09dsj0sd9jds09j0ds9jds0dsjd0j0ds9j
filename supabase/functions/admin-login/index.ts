@@ -1,5 +1,6 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -111,9 +112,9 @@ serve(async (req: Request) => {
       );
     }
 
-    // Compare passwords (currently plaintext, should be hashed in production)
-    // TODO: Implement proper bcrypt hashing
-    if (adminUser.password_hash !== password) {
+    // Compare password using bcrypt
+    const passwordMatch = await bcrypt.compare(password, adminUser.password_hash);
+    if (!passwordMatch) {
       recordAttempt(clientIP);
       console.log(`Failed login attempt (wrong password) for username: ${username} from IP: ${clientIP}`);
       return new Response(
