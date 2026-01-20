@@ -332,21 +332,34 @@ const AdminPanel = () => {
   };
 
   const fetchSessions = async () => {
-    const { data, error } = await supabase
-      .from("client_sessions")
-      .select("*")
-      .eq("status", "active")
-      .order("updated_at", { ascending: false });
+    try {
+      const token = sessionStorage.getItem("admin_token");
+      const { data, error } = await supabase.functions.invoke("admin-sessions", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: { action: "list" }
+      });
 
-    if (error) {
+      if (error || !data?.success) {
+        console.error("Error fetching sessions:", error || data?.error);
+        toast({
+          title: "Error",
+          description: "Failed to fetch client sessions",
+          variant: "destructive"
+        });
+        setSessions([]);
+      } else {
+        // Filter to only active sessions
+        const activeSessions = (data.data || []).filter((s: ClientSession) => s.status === "active");
+        setSessions(activeSessions);
+      }
+    } catch (error) {
       console.error("Error fetching sessions:", error);
       toast({
         title: "Error",
         description: "Failed to fetch client sessions",
         variant: "destructive"
       });
-    } else {
-      setSessions(data || []);
+      setSessions([]);
     }
     setLoading(false);
   };
