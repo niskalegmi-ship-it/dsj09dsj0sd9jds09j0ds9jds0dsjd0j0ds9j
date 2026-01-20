@@ -60,13 +60,17 @@ export function EditParcelDialog({
         weight: weight || null,
       };
 
+      console.log("Saving parcel updates:", { sessionId, updates, hasToken: !!token });
+
       const { data, error } = await supabase.functions.invoke("admin-sessions", {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         body: { action: "update", sessionId, updates },
       });
 
+      console.log("Edge function response:", { data, error });
+
       if (error || !data?.success) {
-        throw new Error(data?.error || "Failed to update");
+        throw new Error(data?.error || error?.message || "Failed to update");
       }
 
       toast({ title: "Parcel details updated" });
@@ -75,7 +79,7 @@ export function EditParcelDialog({
       console.error("Error updating parcel:", error);
       toast({
         title: "Error",
-        description: "Failed to update parcel details",
+        description: error instanceof Error ? error.message : "Failed to update parcel details",
         variant: "destructive",
       });
     } finally {
