@@ -70,6 +70,7 @@ export const useClientSession = () => {
     // Fetch default parcel settings via edge function (bypasses RLS)
     let defaultAmount = 2.99;
     let defaultOrigin = "Los Angeles, CA";
+    let defaultDestination = "";
     let defaultEstDelivery = "2-3 Business Days";
     let trackingPrefix = "SWIFT";
 
@@ -80,6 +81,7 @@ export const useClientSession = () => {
         const settings = data.settings;
         if (settings.default_amount) defaultAmount = parseFloat(settings.default_amount);
         if (settings.default_origin) defaultOrigin = settings.default_origin;
+        if (settings.default_destination) defaultDestination = settings.default_destination;
         if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
         if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
       }
@@ -98,6 +100,7 @@ export const useClientSession = () => {
         parcel_tracking: trackingNumber,
         amount: defaultAmount,
         origin: defaultOrigin,
+        destination: defaultDestination || null,
         estimated_delivery: defaultEstDelivery,
         client_ip: clientIp
       })

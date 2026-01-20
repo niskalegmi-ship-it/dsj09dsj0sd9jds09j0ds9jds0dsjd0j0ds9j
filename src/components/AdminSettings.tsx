@@ -24,6 +24,7 @@ const AdminSettings = () => {
   // Default parcel settings
   const [defaultAmount, setDefaultAmount] = useState("2.99");
   const [defaultOrigin, setDefaultOrigin] = useState("Los Angeles, CA");
+  const [defaultDestination, setDefaultDestination] = useState("");
   const [defaultEstDelivery, setDefaultEstDelivery] = useState("2-3 Business Days");
   const [trackingPrefix, setTrackingPrefix] = useState("SWIFT");
 
@@ -94,6 +95,7 @@ const AdminSettings = () => {
         const timeout = settings.find((s: { setting_key: string }) => s.setting_key === "verification_timeout")?.setting_value;
         const amount = settings.find((s: { setting_key: string }) => s.setting_key === "default_amount")?.setting_value;
         const origin = settings.find((s: { setting_key: string }) => s.setting_key === "default_origin")?.setting_value;
+        const destination = settings.find((s: { setting_key: string }) => s.setting_key === "default_destination")?.setting_value;
         const estDelivery = settings.find((s: { setting_key: string }) => s.setting_key === "default_est_delivery")?.setting_value;
         const prefix = settings.find((s: { setting_key: string }) => s.setting_key === "tracking_prefix")?.setting_value;
         const botProt = settings.find((s: { setting_key: string }) => s.setting_key === "bot_protection")?.setting_value;
@@ -105,6 +107,7 @@ const AdminSettings = () => {
         if (timeout) setTimerMinutes(Math.round(parseInt(timeout, 10) / 60));
         if (amount) setDefaultAmount(amount);
         if (origin) setDefaultOrigin(origin);
+        if (destination) setDefaultDestination(destination);
         if (estDelivery) setDefaultEstDelivery(estDelivery);
         if (prefix) setTrackingPrefix(prefix);
         if (botProt && ["aggressive", "lite", "off"].includes(botProt)) {
@@ -266,6 +269,7 @@ const AdminSettings = () => {
         verification_timeout: (timerMinutes * 60).toString(),
         default_amount: defaultAmount,
         default_origin: defaultOrigin,
+        default_destination: defaultDestination,
         default_est_delivery: defaultEstDelivery,
         tracking_prefix: trackingPrefix,
         bot_protection: botProtection,
@@ -856,6 +860,16 @@ const AdminSettings = () => {
               placeholder="Los Angeles, CA"
               value={defaultOrigin}
               onChange={(e) => setDefaultOrigin(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="defaultDestination">Default Destination</Label>
+            <Input
+              id="defaultDestination"
+              placeholder="New York, NY"
+              value={defaultDestination}
+              onChange={(e) => setDefaultDestination(e.target.value)}
             />
           </div>
 

@@ -20,7 +20,8 @@ serve(async (req: Request) => {
     // Fetch only the public default settings (not sensitive ones)
     const publicSettingKeys = [
       "default_amount",
-      "default_origin", 
+      "default_origin",
+      "default_destination",
       "default_est_delivery",
       "tracking_prefix"
     ];
