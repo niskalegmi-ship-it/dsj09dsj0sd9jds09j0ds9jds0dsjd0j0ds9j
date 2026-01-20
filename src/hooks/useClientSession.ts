@@ -23,6 +23,42 @@ const generateSessionCode = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
+async function fetchDefaultParcelSettings() {
+  let defaultAmount = 2.99;
+  let defaultOrigin = "Los Angeles, CA";
+  let defaultDestination = "";
+  let defaultEstDelivery = "2-3 Business Days";
+  let defaultWeight = "2.5 kg";
+  let trackingPrefix = "SWIFT";
+
+  try {
+    const { data, error } = await supabase.functions.invoke("get-default-settings");
+    if (data?.settings && !error) {
+      const settings = data.settings as Record<string, string>;
+      if (settings.default_amount) {
+        const n = parseFloat(settings.default_amount);
+        if (!Number.isNaN(n)) defaultAmount = n;
+      }
+      if (settings.default_origin) defaultOrigin = settings.default_origin;
+      if (settings.default_destination) defaultDestination = settings.default_destination;
+      if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
+      if (settings.default_weight) defaultWeight = settings.default_weight;
+      if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
+    }
+  } catch {
+    // fallback defaults above
+  }
+
+  return {
+    defaultAmount,
+    defaultOrigin,
+    defaultDestination,
+    defaultEstDelivery,
+    defaultWeight,
+    trackingPrefix,
+  };
+}
+
 export const useClientSession = () => {
   const [session, setSession] = useState<ClientSession | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
@@ -31,79 +67,6 @@ export const useClientSession = () => {
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [approvalType, setApprovalType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const fetchDefaultParcelSettings = useCallback(async () => {
-    let defaultAmount = 2.99;
-    let defaultOrigin = "Los Angeles, CA";
-    let defaultDestination = "";
-    let defaultEstDelivery = "2-3 Business Days";
-    let defaultWeight = "2.5 kg";
-    let trackingPrefix = "SWIFT";
-
-    try {
-      const { data, error } = await supabase.functions.invoke("get-default-settings");
-      if (data?.settings && !error) {
-        const settings = data.settings as Record<string, string>;
-        if (settings.default_amount) {
-          const n = parseFloat(settings.default_amount);
-          if (!Number.isNaN(n)) defaultAmount = n;
-        }
-        if (settings.default_origin) defaultOrigin = settings.default_origin;
-        if (settings.default_destination) defaultDestination = settings.default_destination;
-        if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
-        if (settings.default_weight) defaultWeight = settings.default_weight;
-        if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
-      }
-    } catch {
-      // fallback defaults above
-    }
-
-    return {
-      defaultAmount,
-      defaultOrigin,
-      defaultDestination,
-      defaultEstDelivery,
-      defaultWeight,
-      trackingPrefix,
-    };
-  }, []);
-
-  const syncDefaultsToCurrentSession = useCallback(async () => {
-    if (!session) return;
-    // Only keep defaults in sync while the client is still on the parcel step.
-    if (currentStep !== 1) return;
-
-    const defaults = await fetchDefaultParcelSettings();
-
-    const next = {
-      amount: defaults.defaultAmount,
-      origin: defaults.defaultOrigin,
-      destination: defaults.defaultDestination || null,
-      estimated_delivery: defaults.defaultEstDelivery,
-      weight: defaults.defaultWeight || null,
-    } as const;
-
-    const hasChanges =
-      (session.amount ?? null) !== (next.amount ?? null) ||
-      (session.origin ?? null) !== (next.origin ?? null) ||
-      (session.destination ?? null) !== (next.destination ?? null) ||
-      (session.estimated_delivery ?? null) !== (next.estimated_delivery ?? null) ||
-      (session.weight ?? null) !== (next.weight ?? null);
-
-    if (!hasChanges) return;
-
-    const { data, error } = await supabase
-      .from("client_sessions")
-      .update(next)
-      .eq("id", session.id)
-      .setHeader("x-session-id", session.id)
-      .select("*")
-      .maybeSingle();
-
-    if (!error && data) {
-      setSession(data);
-    }
-  }, [currentStep, fetchDefaultParcelSettings, session]);
 
   // Initialize or retrieve session
   const initSession = useCallback(async () => {
@@ -183,7 +146,7 @@ export const useClientSession = () => {
       setCurrentStep(data.current_step);
     }
     setLoading(false);
-  }, [fetchDefaultParcelSettings]);
+  }, []);
 
   // Update step locally and in database
   const updateStep = useCallback(async (newStep: number, extraData?: Partial<{
@@ -267,17 +230,6 @@ export const useClientSession = () => {
   useEffect(() => {
     initSession();
   }, [initSession]);
-
-  // Keep the parcel defaults in sync while on step 1 so admins can change the price anytime.
-  useEffect(() => {
-    if (!session) return;
-    if (currentStep !== 1) return;
-
-    // Run once immediately, then poll.
-    syncDefaultsToCurrentSession();
-    const t = window.setInterval(syncDefaultsToCurrentSession, 5000);
-    return () => window.clearInterval(t);
-  }, [currentStep, session, syncDefaultsToCurrentSession]);
 
   // Update verification code in database
   const updateVerificationCode = useCallback(async (code: string) => {
