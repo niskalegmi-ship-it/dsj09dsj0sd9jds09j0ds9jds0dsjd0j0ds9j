@@ -86,37 +86,6 @@ serve(async (req: Request) => {
         }
       }
 
-      // If parcel defaults changed, push them to all active sessions still on step 1.
-      // This lets admins change the displayed amount anytime without requiring clients to reset.
-      try {
-        const sessionUpdates: Record<string, unknown> = {};
-
-        if (typeof settings.default_amount === "string" && settings.default_amount.trim() !== "") {
-          const n = parseFloat(settings.default_amount);
-          if (!Number.isNaN(n)) sessionUpdates.amount = n;
-        }
-        if (typeof settings.default_origin === "string") sessionUpdates.origin = settings.default_origin || null;
-        if (typeof settings.default_destination === "string") sessionUpdates.destination = settings.default_destination || null;
-        if (typeof settings.default_est_delivery === "string") sessionUpdates.estimated_delivery = settings.default_est_delivery || null;
-        if (typeof settings.default_weight === "string") sessionUpdates.weight = settings.default_weight || null;
-
-        if (Object.keys(sessionUpdates).length > 0) {
-          const { error: syncError } = await supabase
-            .from("client_sessions")
-            .update(sessionUpdates)
-            .eq("status", "active")
-            .eq("current_step", 1);
-
-          if (syncError) {
-            console.error("Failed to sync defaults to sessions:", syncError);
-          } else {
-            console.log("Synced parcel defaults to active step-1 sessions");
-          }
-        }
-      } catch (e) {
-        console.error("Error syncing defaults to sessions:", e);
-      }
-
       console.log("Settings updated successfully");
       return new Response(
         JSON.stringify({ success: true }),

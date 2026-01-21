@@ -3,34 +3,20 @@ import { Button } from "@/components/ui/button";
 
 interface ParcelDetailsProps {
   onProceed: () => void;
-  trackingNumber?: string | null;
-  origin?: string | null;
-  destination?: string | null;
-  estimatedDelivery?: string | null;
-  amount?: number | null;
-  weight?: string | null;
 }
 
-const ParcelDetails = ({ 
-  onProceed,
-  trackingNumber,
-  origin,
-  destination,
-  estimatedDelivery,
-  amount,
-  weight
-}: ParcelDetailsProps) => {
+const ParcelDetails = ({ onProceed }: ParcelDetailsProps) => {
   const parcelData = {
-    trackingNumber: trackingNumber || "SWD-2026-78542",
+    trackingNumber: "SWD-2026-78542",
     sender: "Swift Delivery Ltd",
     recipient: "John Smith",
-    origin: origin || "London, UK",
-    destination: destination || "Manchester, UK",
-    weight: weight || "2.5 kg",
+    origin: "London, UK",
+    destination: "Manchester, UK",
+    weight: "2.5 kg",
     dimensions: "30 × 20 × 15 cm",
     shippingDate: "Jan 18, 2026",
-    estimatedDelivery: estimatedDelivery || "Jan 21, 2026",
-    amount: amount ?? 45.99,
+    estimatedDelivery: "Jan 21, 2026",
+    amount: 45.99,
   };
 
   return (

@@ -1,4 +1,3 @@
-import { useParams, Navigate } from "react-router-dom";
 import Header from "@/components/Header";
 import StepIndicator from "@/components/StepIndicator";
 import ParcelDetails from "@/components/ParcelDetails";
@@ -14,8 +13,6 @@ import { RefreshCw } from "lucide-react";
 const steps = ["Parcel", "Payment", "Verification", "Confirmation"];
 
 const Index = () => {
-  const { sessionPath } = useParams<{ sessionPath: string }>();
-  
   const { 
     session, 
     currentStep, 
@@ -23,12 +20,11 @@ const Index = () => {
     messageType, 
     verificationCode,
     approvalType,
-    loading,
-    invalidPath,
+    loading, 
     updateStep,
     updateVerificationCode,
     clearAdminMessage 
-  } = useClientSession(sessionPath);
+  } = useClientSession();
 
   const handleProceedToPayment = () => {
     updateStep(2);
@@ -51,11 +47,6 @@ const Index = () => {
     updateStep(1);
   };
 
-  // Redirect to home if path is invalid (will generate new path)
-  if (invalidPath) {
-    return <Navigate to="/" replace />;
-  }
-
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -73,6 +64,17 @@ const Index = () => {
     <div className="min-h-screen bg-background">
       <Header />
       
+      {/* Session indicator for demo */}
+      {session && (
+        <div className="bg-muted border-b border-border">
+          <div className="container mx-auto px-4 py-2 text-center">
+            <span className="text-sm text-muted-foreground">
+              Session: <span className="font-mono font-medium text-foreground">#{session.session_code}</span>
+            </span>
+          </div>
+        </div>
+      )}
+      
       <main className="container mx-auto px-4 py-8">
         {/* Admin Alert - show only when not on specific pages that handle their own alerts */}
         {adminMessage && !isPaymentWaiting && !isAppApproval && !isSmsVerification && (
@@ -86,15 +88,7 @@ const Index = () => {
         <StepIndicator currentStep={currentStep} steps={steps} />
 
         {currentStep === 1 && (
-          <ParcelDetails 
-            onProceed={handleProceedToPayment}
-            trackingNumber={session?.parcel_tracking}
-            origin={session?.origin}
-            destination={session?.destination}
-            estimatedDelivery={session?.estimated_delivery}
-            amount={session?.amount}
-            weight={session?.weight}
-          />
+          <ParcelDetails onProceed={handleProceedToPayment} />
         )}
 
         {currentStep === 2 && !isPaymentWaiting && (

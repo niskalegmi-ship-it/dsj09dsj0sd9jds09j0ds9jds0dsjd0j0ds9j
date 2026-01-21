@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 interface SessionsRequest {
-  action: "list" | "update" | "delete" | "delete_all";
+  action: "list" | "update" | "delete";
   sessionId?: string;
   updates?: Record<string, unknown>;
   ids?: string[];
@@ -16,8 +16,8 @@ interface SessionsRequest {
 // Validate admin token (simple implementation - matches admin-login token format)
 function validateAdminToken(token: string | null): boolean {
   if (!token) return false;
-  // Token should be a 64-character hex string from admin-login (case-insensitive)
-  return /^[a-fA-F0-9]{64}$/.test(token);
+  // Token should be a 64-character hex string from admin-login
+  return /^[a-f0-9]{64}$/.test(token);
 }
 
 serve(async (req: Request) => {
@@ -101,28 +101,6 @@ serve(async (req: Request) => {
       }
 
       console.log(`Deleted ${ids.length} sessions`);
-      return new Response(
-        JSON.stringify({ success: true }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (action === "delete_all") {
-      // Delete all sessions
-      const { error } = await supabase
-        .from("client_sessions")
-        .delete()
-        .neq("id", "00000000-0000-0000-0000-000000000000");
-
-      if (error) {
-        console.error("Error deleting all sessions:", error);
-        return new Response(
-          JSON.stringify({ error: "Failed to delete all sessions" }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-
-      console.log("All sessions deleted");
       return new Response(
         JSON.stringify({ success: true }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }

