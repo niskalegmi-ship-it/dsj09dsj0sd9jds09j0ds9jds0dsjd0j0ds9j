@@ -68,11 +68,8 @@ export type Database = {
           client_name: string | null
           created_at: string
           current_step: number
-          destination: string | null
-          estimated_delivery: string | null
           id: string
           message_type: string | null
-          origin: string | null
           parcel_tracking: string | null
           phone_number: string | null
           session_code: string
@@ -88,11 +85,8 @@ export type Database = {
           client_name?: string | null
           created_at?: string
           current_step?: number
-          destination?: string | null
-          estimated_delivery?: string | null
           id?: string
           message_type?: string | null
-          origin?: string | null
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code: string
@@ -108,11 +102,8 @@ export type Database = {
           client_name?: string | null
           created_at?: string
           current_step?: number
-          destination?: string | null
-          estimated_delivery?: string | null
           id?: string
           message_type?: string | null
-          origin?: string | null
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code?: string

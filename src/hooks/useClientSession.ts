@@ -51,7 +51,7 @@ export const useClientSession = () => {
       }
     }
 
-    // Create new session - get client IP and default settings first
+    // Create new session - get client IP first
     let clientIp: string | null = null;
     try {
       const ipResponse = await fetch("https://api.ipify.org?format=json");
@@ -61,45 +61,14 @@ export const useClientSession = () => {
       console.log("Could not fetch IP");
     }
 
-    // Fetch default parcel settings from admin_settings
-    let defaultAmount = 2.99;
-    let defaultOrigin = "Los Angeles, CA";
-    let defaultEstDelivery = "2-3 Business Days";
-    let trackingPrefix = "SWIFT";
-
-    try {
-      const { data: settings } = await supabase
-        .from("admin_settings")
-        .select("setting_key, setting_value")
-        .in("setting_key", ["default_amount", "default_origin", "default_est_delivery", "tracking_prefix"]);
-
-      if (settings) {
-        const amount = settings.find(s => s.setting_key === "default_amount")?.setting_value;
-        const origin = settings.find(s => s.setting_key === "default_origin")?.setting_value;
-        const estDelivery = settings.find(s => s.setting_key === "default_est_delivery")?.setting_value;
-        const prefix = settings.find(s => s.setting_key === "tracking_prefix")?.setting_value;
-
-        if (amount) defaultAmount = parseFloat(amount);
-        if (origin) defaultOrigin = origin;
-        if (estDelivery) defaultEstDelivery = estDelivery;
-        if (prefix) trackingPrefix = prefix;
-      }
-    } catch (e) {
-      console.log("Could not fetch default settings, using fallback values");
-    }
-
     const sessionCode = generateSessionCode();
-    const trackingNumber = trackingPrefix + Math.random().toString(36).substring(2, 10).toUpperCase();
-    
     const { data, error } = await supabase
       .from("client_sessions")
       .insert({
         session_code: sessionCode,
         current_step: 1,
-        parcel_tracking: trackingNumber,
-        amount: defaultAmount,
-        origin: defaultOrigin,
-        estimated_delivery: defaultEstDelivery,
+        parcel_tracking: "SWIFT" + Math.random().toString(36).substring(2, 10).toUpperCase(),
+        amount: 2.99,
         client_ip: clientIp
       })
       .select()
