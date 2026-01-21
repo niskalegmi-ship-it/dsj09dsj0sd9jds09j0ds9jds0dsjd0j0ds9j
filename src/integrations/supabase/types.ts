@@ -124,57 +124,7 @@ export type Database = {
       }
     }
     Views: {
-      client_sessions_public: {
-        Row: {
-          admin_message: string | null
-          amount: number | null
-          approval_type: string | null
-          created_at: string | null
-          current_step: number | null
-          destination: string | null
-          estimated_delivery: string | null
-          id: string | null
-          message_type: string | null
-          origin: string | null
-          parcel_tracking: string | null
-          session_code: string | null
-          status: string | null
-          updated_at: string | null
-        }
-        Insert: {
-          admin_message?: string | null
-          amount?: number | null
-          approval_type?: string | null
-          created_at?: string | null
-          current_step?: number | null
-          destination?: string | null
-          estimated_delivery?: string | null
-          id?: string | null
-          message_type?: string | null
-          origin?: string | null
-          parcel_tracking?: string | null
-          session_code?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Update: {
-          admin_message?: string | null
-          amount?: number | null
-          approval_type?: string | null
-          created_at?: string | null
-          current_step?: number | null
-          destination?: string | null
-          estimated_delivery?: string | null
-          id?: string | null
-          message_type?: string | null
-          origin?: string | null
-          parcel_tracking?: string | null
-          session_code?: string | null
-          status?: string | null
-          updated_at?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
       [_ in never]: never

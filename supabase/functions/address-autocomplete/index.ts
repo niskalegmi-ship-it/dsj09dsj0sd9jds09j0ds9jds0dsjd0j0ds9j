@@ -5,27 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-// Simple rate limiting
-const requestCounts = new Map<string, { count: number; resetTime: number }>();
-const MAX_REQUESTS_PER_MINUTE = 20;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const record = requestCounts.get(ip);
-  
-  if (!record || now > record.resetTime) {
-    requestCounts.set(ip, { count: 1, resetTime: now + 60000 });
-    return false;
-  }
-  
-  if (record.count >= MAX_REQUESTS_PER_MINUTE) {
-    return true;
-  }
-  
-  record.count++;
-  return false;
-}
-
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -33,20 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Get client IP for rate limiting
-    const clientIP = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() 
-      || req.headers.get('x-real-ip')
-      || 'unknown';
-
-    // Check rate limiting
-    if (isRateLimited(clientIP)) {
-      console.log(`Rate limited address-autocomplete request from IP: ${clientIP}`);
-      return new Response(
-        JSON.stringify({ suggestions: [], error: 'Too many requests' }),
-        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
-
     const { query } = await req.json();
 
     if (!query || query.length < 3) {
@@ -81,7 +46,7 @@ serve(async (req) => {
     console.log(`Found ${data.length} results`);
 
     // Transform Nominatim response to our format
-    const suggestions = data.map((item: { display_name: string; address?: { house_number?: string; road?: string; pedestrian?: string; suburb?: string; city?: string; town?: string; village?: string; municipality?: string; postcode?: string; country?: string } }) => ({
+    const suggestions = data.map((item: any) => ({
       fullAddress: item.display_name,
       street: [item.address?.house_number, item.address?.road].filter(Boolean).join(' ') || 
               item.address?.pedestrian || 

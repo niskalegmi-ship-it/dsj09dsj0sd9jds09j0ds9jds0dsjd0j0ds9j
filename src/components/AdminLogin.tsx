@@ -9,7 +9,7 @@ import { toast } from "@/hooks/use-toast";
 import swiftDeliveryLogo from "@/assets/swift-delivery-logo.png";
 
 interface AdminLoginProps {
-  onLogin: (token: string) => void;
+  onLogin: () => void;
 }
 
 const AdminLogin = ({ onLogin }: AdminLoginProps) => {
@@ -22,46 +22,28 @@ const AdminLogin = ({ onLogin }: AdminLoginProps) => {
     setLoading(true);
 
     try {
-      // Call secure edge function for authentication
-      const { data, error } = await supabase.functions.invoke("admin-login", {
-        body: { username, password }
-      });
+      const { data, error } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("username", username)
+        .eq("password_hash", password)
+        .single();
 
-      if (error) {
+      if (error || !data) {
         toast({
           title: "Login Failed",
-          description: error.message || "An error occurred during login",
+          description: "Invalid username or password",
           variant: "destructive"
         });
-        return;
-      }
-
-      if (data?.error) {
-        toast({
-          title: "Login Failed",
-          description: data.error,
-          variant: "destructive"
-        });
-        return;
-      }
-
-      if (data?.success && data?.token) {
-        // Store secure session token (not just a boolean flag)
-        sessionStorage.setItem("admin_token", data.token);
-        sessionStorage.setItem("admin_token_expires", data.expiresAt);
-        sessionStorage.setItem("admin_username", data.username);
-        
+      } else {
+        // Store admin session in sessionStorage (clears on browser close)
+        sessionStorage.setItem("admin_authenticated", "true");
+        sessionStorage.setItem("admin_username", username);
         toast({
           title: "Welcome!",
           description: "Successfully logged in to admin panel",
         });
-        onLogin(data.token);
-      } else {
-        toast({
-          title: "Login Failed",
-          description: "Invalid response from server",
-          variant: "destructive"
-        });
+        onLogin();
       }
     } catch (err) {
       toast({
@@ -101,7 +83,6 @@ const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                 onChange={(e) => setUsername(e.target.value)}
                 placeholder="Enter username"
                 required
-                maxLength={50}
               />
             </div>
             <div className="space-y-2">
@@ -113,7 +94,6 @@ const AdminLogin = ({ onLogin }: AdminLoginProps) => {
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="Enter password"
                 required
-                maxLength={100}
               />
             </div>
             <Button 

