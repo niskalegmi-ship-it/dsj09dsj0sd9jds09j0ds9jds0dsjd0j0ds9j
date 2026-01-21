@@ -16,8 +16,8 @@ interface SessionsRequest {
 // Validate admin token (simple implementation - matches admin-login token format)
 function validateAdminToken(token: string | null): boolean {
   if (!token) return false;
-  // Token should be a 64-character hex string from admin-login
-  return /^[a-f0-9]{64}$/.test(token);
+  // Token should be a 64-character hex string from admin-login (case-insensitive)
+  return /^[a-fA-F0-9]{64}$/.test(token);
 }
 
 serve(async (req: Request) => {
