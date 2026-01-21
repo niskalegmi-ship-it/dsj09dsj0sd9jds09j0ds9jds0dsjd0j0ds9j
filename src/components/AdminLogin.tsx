@@ -22,31 +22,23 @@ const AdminLogin = ({ onLogin }: AdminLoginProps) => {
     setLoading(true);
 
     try {
-      const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/admin-login`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "apikey": import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-          },
-          body: JSON.stringify({ username, password }),
-        }
-      );
+      const { data, error } = await supabase
+        .from("admin_users")
+        .select("*")
+        .eq("username", username)
+        .eq("password_hash", password)
+        .single();
 
-      const result = await response.json();
-
-      if (!response.ok || !result.success) {
+      if (error || !data) {
         toast({
           title: "Login Failed",
-          description: result.error || "Invalid username or password",
+          description: "Invalid username or password",
           variant: "destructive"
         });
       } else {
         // Store admin session in sessionStorage (clears on browser close)
         sessionStorage.setItem("admin_authenticated", "true");
-        sessionStorage.setItem("admin_username", result.username);
-        sessionStorage.setItem("admin_token", result.token);
+        sessionStorage.setItem("admin_username", username);
         toast({
           title: "Welcome!",
           description: "Successfully logged in to admin panel",
