@@ -263,7 +263,7 @@ const AdminPanel = () => {
       .from("client_sessions")
       .select("*")
       .eq("status", "active")
-      .order("updated_at", { ascending: false });
+      .order("created_at", { ascending: false });
 
     if (error) {
       console.error("Error fetching sessions:", error);
