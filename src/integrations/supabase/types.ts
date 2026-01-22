@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_auth_sessions: {
+        Row: {
+          admin_user_id: string
+          created_at: string
+          expires_at: string
+          id: string
+          ip_address: string | null
+          last_used_at: string
+          token_hash: string
+          user_agent: string | null
+        }
+        Insert: {
+          admin_user_id: string
+          created_at?: string
+          expires_at: string
+          id?: string
+          ip_address?: string | null
+          last_used_at?: string
+          token_hash: string
+          user_agent?: string | null
+        }
+        Update: {
+          admin_user_id?: string
+          created_at?: string
+          expires_at?: string
+          id?: string
+          ip_address?: string | null
+          last_used_at?: string
+          token_hash?: string
+          user_agent?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "admin_auth_sessions_admin_user_id_fkey"
+            columns: ["admin_user_id"]
+            isOneToOne: false
+            referencedRelation: "admin_users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       admin_settings: {
         Row: {
           created_at: string
@@ -43,18 +84,24 @@ export type Database = {
           created_at: string
           id: string
           password_hash: string
+          totp_enabled: boolean
+          totp_secret: string | null
           username: string
         }
         Insert: {
           created_at?: string
           id?: string
           password_hash: string
+          totp_enabled?: boolean
+          totp_secret?: string | null
           username: string
         }
         Update: {
           created_at?: string
           id?: string
           password_hash?: string
+          totp_enabled?: boolean
+          totp_secret?: string | null
           username?: string
         }
         Relationships: []
@@ -76,9 +123,11 @@ export type Database = {
           parcel_tracking: string | null
           phone_number: string | null
           session_code: string
+          session_path: string | null
           status: string | null
           updated_at: string
           verification_code: string | null
+          weight: string | null
         }
         Insert: {
           admin_message?: string | null
@@ -96,9 +145,11 @@ export type Database = {
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code: string
+          session_path?: string | null
           status?: string | null
           updated_at?: string
           verification_code?: string | null
+          weight?: string | null
         }
         Update: {
           admin_message?: string | null
@@ -116,15 +167,67 @@ export type Database = {
           parcel_tracking?: string | null
           phone_number?: string | null
           session_code?: string
+          session_path?: string | null
           status?: string | null
           updated_at?: string
           verification_code?: string | null
+          weight?: string | null
         }
         Relationships: []
       }
     }
     Views: {
-      [_ in never]: never
+      client_sessions_public: {
+        Row: {
+          admin_message: string | null
+          amount: number | null
+          approval_type: string | null
+          created_at: string | null
+          current_step: number | null
+          destination: string | null
+          estimated_delivery: string | null
+          id: string | null
+          message_type: string | null
+          origin: string | null
+          parcel_tracking: string | null
+          session_code: string | null
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          admin_message?: string | null
+          amount?: number | null
+          approval_type?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          destination?: string | null
+          estimated_delivery?: string | null
+          id?: string | null
+          message_type?: string | null
+          origin?: string | null
+          parcel_tracking?: string | null
+          session_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          admin_message?: string | null
+          amount?: number | null
+          approval_type?: string | null
+          created_at?: string | null
+          current_step?: number | null
+          destination?: string | null
+          estimated_delivery?: string | null
+          id?: string | null
+          message_type?: string | null
+          origin?: string | null
+          parcel_tracking?: string | null
+          session_code?: string | null
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
